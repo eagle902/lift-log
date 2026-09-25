@@ -92,6 +92,23 @@ main{max-width:640px;margin:0 auto;padding:14px 16px 150px;display:flex;flex-dir
 .ex-last{font-size:12.5px;color:var(--ink-2);margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .chip{font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--accent);white-space:nowrap}
 .chip.hold{background:var(--surface-2);color:var(--ink-2)}
+.chip.coach{background:var(--ink);color:var(--bg)}
+.coachnote{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:0 var(--radius) var(--radius) 0;padding:10px 12px;font-size:13.5px;color:var(--ink-2);white-space:pre-wrap}
+.coachnote b{display:block;font-family:var(--display);font-weight:600;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:3px}
+.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.grid2 label,.cgrid label{font-size:12px;color:var(--ink-3);display:flex;flex-direction:column;gap:3px}
+.cgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.cardio{border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px;background:var(--surface-2)}
+.cardio .field{background:var(--surface)}
+.ctypes{display:flex;flex-wrap:wrap;gap:5px}
+.ctypes button,.energy button{border:1px solid var(--line-2);background:var(--surface);border-radius:999px;padding:5px 10px;font-size:12.5px;font-weight:600}
+.ctypes button[aria-pressed="true"],.energy button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.energy{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+.energy button{border-radius:8px;padding:7px 2px;font-size:12px}
+.row2{display:flex;gap:8px}
+.row2 .btn{flex:1}
+.diff{font-size:13px;color:var(--ink-2);display:flex;flex-direction:column;gap:3px;background:var(--surface-2);border-radius:9px;padding:10px}
+.diff b{color:var(--ink)}
 .more{border:0;background:none;color:var(--ink-3);font-size:12px;padding:2px 0;white-space:nowrap}
 .confirm{display:flex;gap:6px;align-items:center;font-size:12px;color:var(--ink-2)}
 .confirm button{border:1px solid var(--line-2);background:var(--surface-2);border-radius:6px;padding:3px 9px;font-size:12px}
@@ -166,6 +183,7 @@ body[data-day="report"] .btn.primary{color:var(--bg)}
 .h-sub{font-size:12px;color:var(--ink-3)}
 .h-body{font-size:12.5px;color:var(--ink-2);margin-top:6px;white-space:pre-wrap}
 .empty{font-size:13.5px;color:var(--ink-3);text-align:center;padding:14px}
+@media (max-width:360px){.cgrid{grid-template-columns:repeat(2,1fr)}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -189,7 +207,7 @@ body[data-day="report"] .btn.primary{color:var(--bg)}
 <div class="bar" id="bar">
   <div class="bar-in">
     <button class="rest" id="rest" type="button" aria-label="Rest timer, tap to restart"><b id="restT">0:60</b><small id="restL">rest</small></button>
-    <button class="btn" id="copyToday" type="button">Copy report</button>
+    <button class="btn" id="copyToday" type="button">Share</button>
     <button class="btn primary" id="save" type="button">Save session</button>
   </div>
 </div>
@@ -230,6 +248,48 @@ const DEFAULT_PROGRAM = {
   ]
 };
 
+const CARDIO = {
+  treadmill:{label:'Treadmill', f:['min','km','speed','incline','avgHr','maxHr','kcal']},
+  stairs:{label:'Stairs', f:['min','floors','level','avgHr','maxHr','kcal']},
+  rower:{label:'Rowing', f:['min','m','split','spm','avgHr','kcal']},
+  bike:{label:'Bike', f:['min','km','level','rpm','avgHr','kcal']},
+  outdoor:{label:'Outdoor walk', f:['min','km','elev','steps','avgHr','kcal']}
+};
+const CF = {
+  min:['Time','min','numeric'], km:['Distance','km','decimal'], speed:['Avg speed','km/h','decimal'],
+  incline:['Incline','%','decimal'], avgHr:['Avg HR','bpm','numeric'], maxHr:['Max HR','bpm','numeric'],
+  kcal:['Calories','kcal','numeric'], floors:['Floors','','numeric'], level:['Level','','numeric'],
+  m:['Distance','m','numeric'], split:['Avg /500 m','m:ss','text'], spm:['Stroke rate','/min','numeric'],
+  rpm:['Cadence','rpm','numeric'], elev:['Elevation','m','numeric'], steps:['Steps','','numeric']
+};
+function cardioText(c){
+  const def = CARDIO[c.type] || CARDIO.treadmill, parts=[];
+  const v = k => c[k]!=null && c[k]!=='';
+  if(v('min')) parts.push(c.min+' min');
+  if(v('km')) parts.push(c.km+' km');
+  if(v('m')) parts.push(c.m+' m');
+  if(v('speed')) parts.push(c.speed+' km/h');
+  if(v('incline')) parts.push(c.incline+'% incline');
+  if(v('floors')) parts.push(c.floors+' floors');
+  if(v('level')) parts.push('level '+c.level);
+  if(v('split')) parts.push(c.split+' /500m');
+  if(v('spm')) parts.push(c.spm+' spm');
+  if(v('rpm')) parts.push(c.rpm+' rpm');
+  if(v('elev')) parts.push(c.elev+' m climb');
+  if(v('steps')) parts.push(c.steps+' steps');
+  if(v('avgHr')||v('maxHr')) parts.push('HR '+(v('avgHr')?c.avgHr+' avg':'')+(v('avgHr')&&v('maxHr')?' / ':'')+(v('maxHr')?c.maxHr+' max':''));
+  if(v('kcal')) parts.push(c.kcal+' kcal');
+  return def.label+': '+(parts.join(' · ')||'no details');
+}
+function cardioMinutes(s){
+  if(Array.isArray(s.cardio)) return s.cardio.reduce((a,c)=>a+(Number(c.min)||0),0);
+  return Number(s.walk)||0;
+}
+function cardioLines(s){
+  if(Array.isArray(s.cardio) && s.cardio.length) return s.cardio.map(cardioText);
+  return s.walk?['Walk '+s.walk+' min']:[];
+}
+
 /* ---------- storage helpers ---------- */
 const LS = {
   get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},
@@ -251,11 +311,48 @@ let db = null, dbState = 'connecting';
 const confirmOpen = {};                            // exercise id -> true
 let addOpen = false;
 let restoreDraft = '';
+let planPreview = null, planPending = null;
+function parsePlan(txt){
+  const at = txt.indexOf('code:');
+  let raw = at>=0 ? txt.slice(at+5) : txt;
+  raw = raw.split(')')[0].replace(/\s+/g,'').replace(/-/g,'+').replace(/_/g,'/');
+  const bin = atob(raw);
+  const bytes = new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+  const o = JSON.parse(new TextDecoder().decode(bytes));
+  if(!o || o.app!=='liftlog-plan' || !o.program || !Array.isArray(o.program.push) || !Array.isArray(o.program.pull) || !Array.isArray(o.program.legs)) throw new Error('bad');
+  return o;
+}
+function planDiff(o){
+  const lines=[];
+  ['push','pull','legs'].forEach(day=>{
+    const oldL=program[day]||[], newL=o.program[day];
+    const L=DAYS[day].label;
+    newL.forEach(n=>{
+      const old=oldL.find(x=>x.id===n.id);
+      if(!old){lines.push(L+': add '+n.name+' '+n.sets+'×'+n.reps+(n.coach&&n.coach.w!=null?' at '+kg(n.coach.w)+' kg':''));return}
+      const ch=[];
+      if(old.name!==n.name) ch.push('renamed '+n.name);
+      if(old.sets!==n.sets||old.reps!==n.reps) ch.push(n.sets+'×'+n.reps);
+      if(old.rest!==n.rest) ch.push(n.rest+' s rest');
+      if(n.coach&&n.coach.w!=null) ch.push('target '+kg(n.coach.w)+' kg');
+      if(ch.length) lines.push(L+': '+n.name+' → '+ch.join(', '));
+    });
+    oldL.forEach(x=>{ if(!newL.find(n=>n.id===x.id)) lines.push(L+': remove '+x.name); });
+    const oi=oldL.map(x=>x.id).filter(id=>newL.some(n=>n.id===id)).join(), ni=newL.map(x=>x.id).filter(id=>oldL.some(n=>n.id===id)).join();
+    if(oi!==ni) lines.push(L+': new exercise order');
+    if(o.notes && o.notes[day]) lines.push(L+': session notes updated');
+  });
+  return {title:'Plan '+(o.label||'update')+' — '+lines.length+' changes', lines: lines.length?lines:['No changes to exercises']};
+}
 
 function draftKey(day){return 'ppl-draft-'+day}
 function getDraft(day){
   let d = LS.get(draftKey(day), null);
-  if(!d) d = {day, date:todayISO(), entries:{}, walk:'', back:null, bw:'', waist:'', notes:''};
+  if(!d) d = {day, date:todayISO(), entries:{}, back:null, bw:'', waist:'', notes:'', energy:null};
+  if(!Array.isArray(d.cardio)){
+    d.cardio=[{type:'treadmill'}];
+    if(d.walk){d.cardio[0].min=d.walk;}
+  }
   return d;
 }
 function putDraft(d){LS.set(draftKey(d.day), d)}
@@ -276,13 +373,25 @@ function topWeight(sets, assist){
   return assist ? Math.min(...ws) : Math.max(...ws);
 }
 function suggestion(ex){
+  if(ex.coach && ex.coach.w!=null && ex.coach.setAt){
+    const done = sessions.some(s => (s.savedAt||'') > ex.coach.setAt && (s.exercises||[]).some(e=>e.id===ex.id||e.name===ex.name));
+    if(!done) return {w:ex.coach.w, kind:'coach', text:'Plan: '+kg(ex.coach.w)+' kg'+(ex.assist?' assist':'')+(ex.coach.note?' · '+ex.coach.note:'')};
+  }
   const last = lastEntryFor(ex);
   if(!last) return {w:ex.hint, kind:'start', text:'Start around '+kg(ex.hint)+' kg'};
   const sets = last.entry.sets.filter(s=>s.w!=null && s.w!=='');
   const top = topWeight(sets, ex.assist);
   if(top==null) return {w:ex.hint, kind:'start', text:'Start around '+kg(ex.hint)+' kg'};
-  const allHit = sets.length >= ex.sets && sets.every(s => Number(s.r) >= ex.reps);
   const step = ex.step || 2.5;
+  const uniform = sets.every(s => Number(s.w) === Number(sets[0].w));
+  if(!uniform){
+    // Weight changed between sets: settle on one working weight first (the middle of what was used).
+    const ws = sets.map(s=>Number(s.w)).sort((a,b)=>a-b);
+    const mid = ws.length%2 ? ws[(ws.length-1)/2] : (ws[ws.length/2-1]+ws[ws.length/2])/2;
+    const w = Math.floor(mid/step)*step || ws[0];
+    return {w, kind:'hold', text:'Pick one weight: '+kg(w)+' kg on all '+ex.sets+' sets'};
+  }
+  const allHit = sets.length >= ex.sets && sets.every(s => Number(s.r) >= ex.reps);
   if(allHit){
     const w = ex.assist ? Math.max(0, top-step) : top+step;
     return {w, kind:'up', text: ex.assist ? 'All reps hit — drop assist to '+kg(w)+' kg' : 'All reps hit — try '+kg(w)+' kg'};
@@ -313,6 +422,8 @@ function renderDay(day){
   let h = '';
   h += '<div class="meta"><div class="focus">'+esc(DAYS[day].focus)+'</div>'+
        '<label for="date-'+day+'">Date <input type="date" id="date-'+day+'" value="'+esc(d.date)+'"></label></div>';
+  const note = program.notes && program.notes[day];
+  if(note) h += '<div class="coachnote"><b>Plan for this session'+(program.label?' · '+esc(program.label):'')+'</b>'+esc(note)+'</div>';
   h += '<div class="progress" aria-label="Sets done"><b style="width:'+(totalSets?Math.round(doneSets/totalSets*100):0)+'%"></b></div>';
 
   list.forEach(ex=>{
@@ -330,7 +441,7 @@ function renderDay(day){
     }
     h += '</div>';
     h += '<div class="ex-last">'+(last?'<span class="num">Last '+esc(fmtDate(last.session.date))+': '+esc(setsText(last.entry.sets))+'</span>':'<span>No history yet</span>')+
-         '<span class="chip'+(sug.kind==='hold'?' hold':'')+'">'+esc(sug.text)+'</span></div>';
+         '<span class="chip'+(sug.kind==='hold'?' hold':sug.kind==='coach'?' coach':'')+'">'+esc(sug.text)+'</span></div>';
     h += '<div class="sets">';
     for(let i=0;i<ex.sets;i++){
       const s = e.sets[i] || {};
@@ -355,20 +466,38 @@ function renderDay(day){
     h += '<button type="button" class="add" data-act="add">+ Add an exercise to '+DAYS[day].label+' day</button>';
   }
 
+  // Cardio
+  h += '<section class="extras"><h2>Cardio</h2>';
+  d.cardio.forEach((c,ci)=>{
+    const def = CARDIO[c.type]||CARDIO.treadmill;
+    h += '<div class="cardio" data-ci="'+ci+'"><div class="ctypes" role="group" aria-label="Machine">';
+    Object.keys(CARDIO).forEach(k=>{ h += '<button type="button" data-act="ctype" data-v="'+k+'" aria-pressed="'+(c.type===k)+'">'+CARDIO[k].label+'</button>'; });
+    h += '</div><div class="cgrid">';
+    def.f.forEach(f=>{
+      const [lab,unit,mode]=CF[f];
+      h += '<label>'+lab+'<div class="field"><input id="c-'+day+'-'+ci+'-'+f+'" data-cf="'+f+'" '+(mode==='text'?'type="text" inputmode="numeric" placeholder="2:30"':'type="number" step="any" inputmode="'+mode+'"')+' value="'+esc(c[f]??'')+'">'+(unit?'<span>'+unit+'</span>':'')+'</div></label>';
+    });
+    h += '</div>'+(d.cardio.length>1?'<button type="button" class="link" style="color:var(--ink-3);align-self:flex-start" data-act="crm">Remove this cardio</button>':'')+'</div>';
+  });
+  h += '<button type="button" class="link" style="align-self:flex-start" data-act="cadd">+ Add another cardio machine</button></section>';
+
   const painColor = v => v==null?'':(v<=3?'var(--ok)':v<=5?'var(--warn)':'var(--bad)');
-  h += '<section class="extras"><h2>Session notes</h2>'+
-    '<div class="grid3">'+
-      '<label>Walk (min)<div class="field"><input id="x-walk-'+day+'" data-x="walk" type="number" inputmode="numeric" placeholder="20" value="'+esc(d.walk)+'"><span>min</span></div></label>'+
-      '<label>Body weight<div class="field"><input id="x-bw-'+day+'" data-x="bw" type="number" inputmode="decimal" step="0.1" placeholder="optional" value="'+esc(d.bw)+'"><span>kg</span></div></label>'+
-      '<label>Waist<div class="field"><input id="x-waist-'+day+'" data-x="waist" type="number" inputmode="decimal" step="0.5" placeholder="optional" value="'+esc(d.waist)+'"><span>cm</span></div></label>'+
-    '</div>'+
+  const EN=['Empty','Low','OK','Good','Plenty'];
+  h += '<section class="extras"><h2>How it went</h2>'+
+    '<div><div class="pain-note" style="margin-bottom:5px">Energy on the last sets</div><div class="energy">';
+  for(let v=1; v<=5; v++) h += '<button type="button" data-act="energy" data-v="'+v+'" aria-pressed="'+(d.energy===v)+'">'+v+' '+EN[v-1]+'</button>';
+  h += '</div></div>'+
     '<div><div class="pain-note" style="margin-bottom:5px">Lower back today (0 = none, 10 = severe)</div><div class="pain">';
   for(let v=0; v<=10; v++){
     const on = d.back===v;
     h += '<button type="button" data-act="pain" data-v="'+v+'" aria-pressed="'+on+'" style="'+(on?'background:'+painColor(v):'')+'">'+v+'</button>';
   }
-  h += '</div>'+(d.back!=null && d.back>=5?'<div class="pain-note" style="color:var(--bad);margin-top:5px">5 or higher: stop the exercise that triggered it and tell Claude.</div>':'')+'</div>'+
-    '<textarea id="x-notes-'+day+'" data-x="notes" placeholder="How did it feel? Anything that hurt, felt easy, or got swapped?">'+esc(d.notes)+'</textarea>'+
+  h += '</div>'+(d.back!=null && d.back>=5?'<div class="pain-note" style="color:var(--bad);margin-top:5px">5 or higher: stop the exercise that triggered it and mention it in your report.</div>':'')+'</div>'+
+    '<div class="grid2">'+
+      '<label>Body weight<div class="field"><input id="x-bw-'+day+'" data-x="bw" type="number" inputmode="decimal" step="0.1" placeholder="optional" value="'+esc(d.bw)+'"><span>kg</span></div></label>'+
+      '<label>Waist<div class="field"><input id="x-waist-'+day+'" data-x="waist" type="number" inputmode="decimal" step="0.5" placeholder="optional" value="'+esc(d.waist)+'"><span>cm</span></div></label>'+
+    '</div>'+
+    '<textarea id="x-notes-'+day+'" data-x="notes" placeholder="Anything to mention? What you ate before, what hurt, what felt easy, what you swapped.">'+esc(d.notes)+'</textarea>'+
     '</section>';
 
   main.innerHTML = h;
@@ -405,8 +534,18 @@ function renderReport(){
       '<button type="button" data-act="mode" data-v="all" aria-pressed="'+(reportMode==='all')+'">Progress</button>'+
     '</div>'+
     '<textarea class="report" id="reportText" readonly>'+esc(text)+'</textarea>'+
-    '<button type="button" class="btn primary" data-act="copy">Copy report</button>'+
-    '<div class="hint">Paste it into your chat with your coach or Claude.</div></section>';
+    '<div class="row2"><button type="button" class="btn primary" data-act="share">Share</button><button type="button" class="btn" data-act="copy">Copy</button></div>'+
+    '<div class="hint">Share sends it to Signal, email or Notes. Then paste it into your chat with Claude.</div></section>';
+  h += '<section class="panel" id="importPanel"><h2>Import plan</h2>';
+  if(planPreview){
+    h += '<div class="diff"><b>'+esc(planPreview.title)+'</b>'+planPreview.lines.map(l=>'<div>'+esc(l)+'</div>').join('')+'</div>'+
+      '<div class="row2"><button type="button" class="btn primary" data-act="plan-apply">Apply plan</button><button type="button" class="btn" data-act="plan-cancel">Cancel</button></div>';
+  } else {
+    h += '<div class="hint">Paste the plan update you received (the whole message, including the code line).</div>'+
+      '<textarea class="report" id="planText" style="min-height:80px" placeholder="LIFTLOG PLAN …"></textarea>'+
+      '<button type="button" class="btn" data-act="plan-check">Check plan</button>';
+  }
+  h += '</section>';
 
   const rows = progressRows();
   const colors={push:'var(--push)',pull:'var(--pull)',legs:'var(--legs)'};
@@ -432,7 +571,8 @@ function renderReport(){
   if(!ss.length) h += '<div class="empty">No sessions saved yet.</div>';
   ss.slice(0,40).forEach(s=>{
     const lines=(s.exercises||[]).map(e=>e.name+': '+setsText(e.sets)).join('\n');
-    const extra=[s.walk?('Walk '+s.walk+' min'):'', s.back!=null?('Back '+s.back+'/10'):'', s.bw?('Weight '+s.bw+' kg'):'', s.waist?('Waist '+s.waist+' cm'):''].filter(Boolean).join(' · ');
+    const cm=cardioMinutes(s);
+    const extra=[cm?('Cardio '+cm+' min'):'', s.energy?('Energy '+s.energy+'/5'):'', s.back!=null?('Back '+s.back+'/10'):'', s.bw?('Weight '+s.bw+' kg'):'', s.waist?('Waist '+s.waist+' cm'):''].filter(Boolean).join(' · ');
     h += '<div class="h-item" data-sid="'+esc(s.id)+'"><div class="h-top"><div><div class="h-title" style="color:'+colors[s.day]+'">'+esc(DAYS[s.day]?DAYS[s.day].label:s.day)+' · '+esc(fmtDate(s.date))+'</div>'+
       '<div class="h-sub">'+esc(extra||'')+''+'</div></div>'+
       (confirmOpen['s:'+s.id]?'<div class="confirm">Delete? <button type="button" class="danger" data-act="sdel-yes">Yes</button><button type="button" data-act="sdel-no">No</button></div>':'<button type="button" class="more" data-act="sdel">Delete</button>')+
@@ -455,7 +595,7 @@ function renderReport(){
 /* ---------- report text ---------- */
 function sessionBlock(s){
   const out=[];
-  out.push((DAYS[s.day]?DAYS[s.day].label.toUpperCase():s.day)+' DAY — '+fmtDate(s.date));
+  out.push((DAYS[s.day]?DAYS[s.day].label.toUpperCase():s.day)+' DAY — '+fmtDate(s.date)+(s.plan?' (plan '+s.plan+')':''));
   (s.exercises||[]).forEach(e=>{
     const ex = (program[s.day]||[]).find(x=>x.id===e.id) || {sets:e.target?e.target.sets:0,reps:e.target?e.target.reps:0,assist:e.assist};
     const prev = lastEntryFor({id:e.id,name:e.name}, null);
@@ -468,7 +608,8 @@ function sessionBlock(s){
     }
     out.push('- '+e.name+(e.assist?' [assist kg]':'')+' ('+(e.target?e.target.sets+'x'+e.target.reps:'')+'): '+setsText(e.sets)+prevTxt);
   });
-  const extra=[s.walk?('Walk '+s.walk+' min'):'', s.back!=null?('Lower back '+s.back+'/10'):'', s.bw?('Weight '+s.bw+' kg'):'', s.waist?('Waist '+s.waist+' cm'):''].filter(Boolean);
+  cardioLines(s).forEach(l=>out.push('Cardio — '+l));
+  const extra=[s.energy?('Energy on last sets '+s.energy+'/5'):'', s.back!=null?('Lower back '+s.back+'/10'):'', s.bw?('Weight '+s.bw+' kg'):'', s.waist?('Waist '+s.waist+' cm'):''].filter(Boolean);
   if(extra.length) out.push(extra.join(' · '));
   if(s.notes) out.push('Notes: '+s.notes);
   return out.join('\n');
@@ -482,9 +623,9 @@ function buildReport(mode){
     const wk=ss.filter(s=>s.date>=c).reverse();
     if(!wk.length) return 'No sessions in the last 7 days.';
     const backs=wk.filter(s=>s.back!=null).map(s=>s.back);
-    const walks=wk.reduce((a,s)=>a+(Number(s.walk)||0),0);
+    const walks=wk.reduce((a,s)=>a+cardioMinutes(s),0);
     let t='LIFT LOG — last 7 days: '+wk.length+' sessions ('+['push','pull','legs'].map(d=>wk.filter(s=>s.day===d).length+' '+d).join(', ')+')\n';
-    t+='Walking total: '+walks+' min'+(backs.length?' · Lower back range '+Math.min(...backs)+'–'+Math.max(...backs)+'/10':'')+'\n\n';
+    t+='Cardio total: '+walks+' min'+(backs.length?' · Lower back range '+Math.min(...backs)+'–'+Math.max(...backs)+'/10':'')+'\n\n';
     return t+wk.map(sessionBlock).join('\n\n');
   }
   const rows=progressRows().filter(r=>r.pts.length);
@@ -505,6 +646,11 @@ function copyText(text, fallbackEl, msg){
   const done=()=>toast(msg||'Report copied — ready to paste');
   const fail=()=>{ if(fallbackEl){fallbackEl.focus();fallbackEl.select();} toast('Select all and copy the text'); };
   try{ navigator.clipboard.writeText(text).then(done, fail); }catch(e){ fail(); }
+}
+function shareText(text, fallbackEl){
+  if(navigator.share){
+    navigator.share({title:'Lift Log', text}).catch(err=>{ if(err && err.name!=='AbortError') copyText(text, fallbackEl); });
+  } else copyText(text, fallbackEl);
 }
 let toastT;
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2600)}
@@ -534,6 +680,7 @@ main.addEventListener('input',e=>{
   const d=getDraft(tab), t=e.target;
   if(t.type==='date'){d.date=t.value||todayISO();putDraft(d);return}
   if(t.dataset.x){d[t.dataset.x]=t.value;putDraft(d);return}
+  if(t.dataset.cf){const ci=+t.closest('.cardio').dataset.ci; d.cardio[ci][t.dataset.cf]=t.value===''?null:(t.type==='number'?Number(t.value):t.value); putDraft(d); return}
   const sec=t.closest('.ex'), row=t.closest('.set');
   if(sec&&row&&t.dataset.f){
     const id=sec.dataset.ex,i=+row.dataset.i;
@@ -560,6 +707,20 @@ main.addEventListener('click',e=>{
     const item=b.closest('.h-item'), sid=item&&item.dataset.sid;
     if(act==='mode'){reportMode=b.dataset.v;render();}
     else if(act==='copy'){copyText(buildReport(reportMode),document.getElementById('reportText'));}
+    else if(act==='share'){shareText(buildReport(reportMode),document.getElementById('reportText'));}
+    else if(act==='plan-check'){
+      const v=(document.getElementById('planText').value||'').trim();
+      if(!v){toast('Paste the plan update into the box first');return}
+      try{ planPending=parsePlan(v); planPreview=planDiff(planPending); render(); document.getElementById('importPanel').scrollIntoView({block:'start'}); }
+      catch(err){ toast('That text is not a Lift Log plan. Paste the whole message, including the code line.'); }
+    }
+    else if(act==='plan-cancel'){planPending=null;planPreview=null;render();}
+    else if(act==='plan-apply'){
+      const o=planPending, now=new Date().toISOString();
+      const np={push:o.program.push,pull:o.program.pull,legs:o.program.legs,notes:o.notes||{},label:o.label||''};
+      ['push','pull','legs'].forEach(d=>np[d].forEach(x=>{ if(x.coach) x.coach.setAt=now; }));
+      program=np; saveProgram(); planPending=null; planPreview=null; render(); toast('Plan '+(np.label||'')+' applied');
+    }
     else if(act==='sdel'){confirmOpen['s:'+sid]=true;render();}
     else if(act==='sdel-no'){delete confirmOpen['s:'+sid];render();}
     else if(act==='sdel-yes'){delete confirmOpen['s:'+sid];deleteSession(sid);}
@@ -599,6 +760,10 @@ main.addEventListener('click',e=>{
   else if(act==='rm-yes'){delete confirmOpen[exId];program[tab]=program[tab].filter(x=>x.id!==exId);saveProgram();render();}
   else if(act==='add'){addOpen=true;render();const n=document.getElementById('add-name');if(n)n.focus();}
   else if(act==='add-cancel'){addOpen=false;render();}
+  else if(act==='ctype'){const ci=+b.closest('.cardio').dataset.ci; d.cardio[ci].type=b.dataset.v; putDraft(d); render();}
+  else if(act==='cadd'){d.cardio.push({type:'treadmill'}); putDraft(d); render();}
+  else if(act==='crm'){const ci=+b.closest('.cardio').dataset.ci; d.cardio.splice(ci,1); putDraft(d); render();}
+  else if(act==='energy'){const v=+b.dataset.v; d.energy=(d.energy===v)?null:v; putDraft(d); render();}
   else if(act==='pain'){const v=+b.dataset.v;d.back=(d.back===v)?null:v;putDraft(d);render();}
 });
 
@@ -610,12 +775,14 @@ function draftToSession(d){
     if(sets.length) exercises.push({id:ex.id,name:ex.name,assist:!!ex.assist,target:{sets:ex.sets,reps:ex.reps},sets});
   });
   return {id:newId(),day:d.day,date:d.date||todayISO(),savedAt:new Date().toISOString(),exercises,
-    walk:d.walk===''?null:Number(d.walk),back:d.back,bw:d.bw===''?null:Number(d.bw),waist:d.waist===''?null:Number(d.waist),notes:(d.notes||'').trim()};
+    cardio:(d.cardio||[]).map(c=>{const o={type:c.type||'treadmill'};(CARDIO[o.type]||CARDIO.treadmill).f.forEach(f=>{if(c[f]!=null&&c[f]!=='') o[f]=c[f]});return o}).filter(c=>Object.keys(c).length>1),
+    energy:d.energy??null, plan:program.label||'',
+    back:d.back,bw:d.bw===''||d.bw==null?null:Number(d.bw),waist:d.waist===''||d.waist==null?null:Number(d.waist),notes:(d.notes||'').trim()};
 }
 
 document.getElementById('save').addEventListener('click',async()=>{
   const d=getDraft(tab), s=draftToSession(d);
-  if(!s.exercises.length && !s.walk && s.bw==null){toast('Log at least one set before saving');return}
+  if(!s.exercises.length && !s.cardio.length && s.bw==null){toast('Log at least one set or some cardio before saving');return}
   sessions.push(s); LS.set('ppl-sessions',sessions);
   LS.del(draftKey(tab));
   const where='on this phone';
@@ -624,8 +791,8 @@ document.getElementById('save').addEventListener('click',async()=>{
 });
 document.getElementById('copyToday').addEventListener('click',()=>{
   const d=getDraft(tab), s=draftToSession(d);
-  if(!s.exercises.length){copyText(buildReport('last'));return}
-  copyText('LIFT LOG — in progress\n\n'+sessionBlock(s));
+  if(!s.exercises.length && !s.cardio.length){shareText(buildReport('last'));return}
+  shareText('LIFT LOG — in progress\n\n'+sessionBlock(s));
 });
 
 async function deleteSession(id){
