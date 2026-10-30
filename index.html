@@ -81,6 +81,10 @@ main{max-width:640px;margin:0 auto;padding:14px 16px 150px;display:flex;flex-dir
 .meta label{font-size:12px;color:var(--ink-3);display:flex;align-items:center;gap:6px}
 .meta input[type=date]{border:1px solid var(--line-2);background:var(--surface);border-radius:8px;padding:5px 8px;font-size:14px}
 
+.timing{font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px}
+.timing i{width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block}
+.tab small.next{font-weight:700;color:var(--accent)}
+.tab[aria-selected="true"] small.next{color:#fff}
 .progress{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
 .progress b{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
 
@@ -300,6 +304,14 @@ const clone = o => JSON.parse(JSON.stringify(o));
 const todayISO = () => {const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
 const fmtDate = iso => {const [y,m,d]=iso.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'})};
 const kg = v => (v==null||v==='')?'':(Math.round(Number(v)*100)/100).toString();
+const fmtTime = iso => new Date(iso).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+const minsSince = iso => Math.max(0, Math.round((Date.now()-new Date(iso).getTime())/60000));
+function anyDone(d){ return Object.values(d.entries||{}).some(e => (e.sets||[]).some(x => x && x.done)); }
+function nextUpDay(){
+  const last = {push:'', pull:'', legs:''};
+  sessions.forEach(x => { if(last[x.day]!==undefined){ const k=(x.date||'')+(x.savedAt||''); if(k>last[x.day]) last[x.day]=k; } });
+  return ['push','pull','legs'].reduce((a,b) => last[b] < last[a] ? b : a);
+}
 const newId = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 
 let program = LS.get('ppl-program', clone(DEFAULT_PROGRAM));
@@ -410,6 +422,9 @@ const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.6" stroke-li
 function render(){
   document.body.dataset.day = tab;
   document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected', String(t.dataset.t===tab)));
+  const nu = nextUpDay(), SUB={push:'chest · shoulders',pull:'back · biceps',legs:'back-safe'};
+  ['push','pull','legs'].forEach(k=>{ const sm=document.querySelector('#tab-'+k+' small'); if(!sm) return;
+    if(k===nu){ sm.textContent='next up'; sm.className='next'; } else { sm.textContent=SUB[k]; sm.className=''; } });
   document.getElementById('bar').hidden = (tab==='report');
   if(tab==='report') renderReport(); else renderDay(tab);
 }
@@ -422,6 +437,8 @@ function renderDay(day){
   let h = '';
   h += '<div class="meta"><div class="focus">'+esc(DAYS[day].focus)+'</div>'+
        '<label for="date-'+day+'">Date <input type="date" id="date-'+day+'" value="'+esc(d.date)+'"></label></div>';
+  if(d.startedAt) h += '<div class="timing"><i></i><span>Started '+esc(fmtTime(d.startedAt))+' · <span id="elapsed" data-start="'+esc(d.startedAt)+'">'+minsSince(d.startedAt)+' min</span> so far</span></div>';
+  else h += '<div class="timing" style="color:var(--ink-3)">The clock starts when you tick your first set.</div>';
   const note = program.notes && program.notes[day];
   if(note) h += '<div class="coachnote"><b>Plan for this session'+(program.label?' · '+esc(program.label):'')+'</b>'+esc(note)+'</div>';
   h += '<div class="progress" aria-label="Sets done"><b style="width:'+(totalSets?Math.round(doneSets/totalSets*100):0)+'%"></b></div>';
@@ -572,7 +589,7 @@ function renderReport(){
   ss.slice(0,40).forEach(s=>{
     const lines=(s.exercises||[]).map(e=>e.name+': '+setsText(e.sets)).join('\n');
     const cm=cardioMinutes(s);
-    const extra=[cm?('Cardio '+cm+' min'):'', s.energy?('Energy '+s.energy+'/5'):'', s.back!=null?('Back '+s.back+'/10'):'', s.bw?('Weight '+s.bw+' kg'):'', s.waist?('Waist '+s.waist+' cm'):''].filter(Boolean).join(' · ');
+    const extra=[s.startedAt?(fmtTime(s.startedAt)+(s.durationMin!=null?', '+s.durationMin+' min':'')):'', cm?('Cardio '+cm+' min'):'', s.energy?('Energy '+s.energy+'/5'):'', s.back!=null?('Back '+s.back+'/10'):'', s.bw?('Weight '+s.bw+' kg'):'', s.waist?('Waist '+s.waist+' cm'):''].filter(Boolean).join(' · ');
     h += '<div class="h-item" data-sid="'+esc(s.id)+'"><div class="h-top"><div><div class="h-title" style="color:'+colors[s.day]+'">'+esc(DAYS[s.day]?DAYS[s.day].label:s.day)+' · '+esc(fmtDate(s.date))+'</div>'+
       '<div class="h-sub">'+esc(extra||'')+''+'</div></div>'+
       (confirmOpen['s:'+s.id]?'<div class="confirm">Delete? <button type="button" class="danger" data-act="sdel-yes">Yes</button><button type="button" data-act="sdel-no">No</button></div>':'<button type="button" class="more" data-act="sdel">Delete</button>')+
@@ -596,6 +613,7 @@ function renderReport(){
 function sessionBlock(s){
   const out=[];
   out.push((DAYS[s.day]?DAYS[s.day].label.toUpperCase():s.day)+' DAY — '+fmtDate(s.date)+(s.plan?' (plan '+s.plan+')':''));
+  if(s.startedAt) out.push('Time: '+fmtTime(s.startedAt)+(s.endedAt?'–'+fmtTime(s.endedAt):'')+(s.durationMin!=null?' ('+s.durationMin+' min)':''));
   (s.exercises||[]).forEach(e=>{
     const ex = (program[s.day]||[]).find(x=>x.id===e.id) || {sets:e.target?e.target.sets:0,reps:e.target?e.target.reps:0,assist:e.assist};
     const prev = lastEntryFor({id:e.id,name:e.name}, null);
@@ -747,14 +765,18 @@ main.addEventListener('click',e=>{
       if(s.w==null) s.w = (i>0 && d.entries[ex.id].sets[i-1] && d.entries[ex.id].sets[i-1].w!=null) ? d.entries[ex.id].sets[i-1].w : sug.w;
       if(s.r==null) s.r = ex.reps;
       s.done=true; startRest(ex.rest||60);
-    } else s.done=false;
+      if(!d.startedAt) d.startedAt=new Date().toISOString();
+    } else {
+      s.done=false;
+      if(!anyDone(d)) delete d.startedAt;
+    }
     putDraft(d); render();
   } else if(act==='fill'&&ex){
     const sug=suggestion(ex);
     d.entries[ex.id]=d.entries[ex.id]||{sets:[]};
     for(let i=0;i<ex.sets;i++){const s=d.entries[ex.id].sets[i]=d.entries[ex.id].sets[i]||{}; if(s.w==null) s.w=sug.w; if(s.r==null) s.r=ex.reps;}
     putDraft(d); render();
-  } else if(act==='clear'&&ex){delete d.entries[ex.id];putDraft(d);render();}
+  } else if(act==='clear'&&ex){delete d.entries[ex.id]; if(!anyDone(d)) delete d.startedAt; putDraft(d);render();}
   else if(act==='rm'){confirmOpen[exId]=true;render();}
   else if(act==='rm-no'){delete confirmOpen[exId];render();}
   else if(act==='rm-yes'){delete confirmOpen[exId];program[tab]=program[tab].filter(x=>x.id!==exId);saveProgram();render();}
@@ -777,6 +799,7 @@ function draftToSession(d){
   return {id:newId(),day:d.day,date:d.date||todayISO(),savedAt:new Date().toISOString(),exercises,
     cardio:(d.cardio||[]).map(c=>{const o={type:c.type||'treadmill'};(CARDIO[o.type]||CARDIO.treadmill).f.forEach(f=>{if(c[f]!=null&&c[f]!=='') o[f]=c[f]});return o}).filter(c=>Object.keys(c).length>1),
     energy:d.energy??null, plan:program.label||'',
+    startedAt:d.startedAt||null, endedAt:d.startedAt?new Date().toISOString():null, durationMin:d.startedAt?minsSince(d.startedAt):null,
     back:d.back,bw:d.bw===''||d.bw==null?null:Number(d.bw),waist:d.waist===''||d.waist==null?null:Number(d.waist),notes:(d.notes||'').trim()};
 }
 
@@ -807,7 +830,12 @@ async function saveProgram(){
 }
 
 /* ---------- boot ---------- */
+(function(){
+  const inProgress = (tab!=='report') && (()=>{ const d=getDraft(tab); return anyDone(d) || Object.keys(d.entries||{}).length>0; })();
+  if(!inProgress){ tab=nextUpDay(); LS.set('ppl-tab',tab); }
+})();
 render();
+setInterval(()=>{ const el=document.getElementById('elapsed'); if(el) el.textContent=minsSince(el.dataset.start)+' min'; }, 30000);
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
