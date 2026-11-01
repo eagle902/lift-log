@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#B8412C">
+<meta name="theme-color" content="#0F1113">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Lift Log">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
@@ -17,30 +17,18 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&display=swap">
 <style>
 :root{
-  --bg:#ECEEEC; --surface:#FFFFFF; --surface-2:#F4F5F3; --ink:#1B2124; --ink-2:#4A5357; --ink-3:#7C8588;
-  --line:#D5D9D6; --line-2:#C2C7C4;
-  --push:#B8412C; --push-soft:#F6E3DE; --pull:#2C5A9E; --pull-soft:#E1E9F5; --legs:#3C7A47; --legs-soft:#E1EFE3;
+  color-scheme:dark;
+  /* Iron: near-black steel ground, warm chalk-white text */
+  --bg:#0F1113; --surface:#181B1E; --surface-2:#202429; --ink:#F2EFEA; --ink-2:#BDB7AE; --ink-3:#8C867D;
+  --line:#2A2E33; --line-2:#3A3F46;
+  /* Push = power (fire red) · Pull = discipline (steel blue) · Legs = grit (bronze) · Gold = achievement */
+  --push:#E0402A; --push-soft:#3A1711; --pull:#3F6FE0; --pull-soft:#152038; --legs:#CF6A1C; --legs-soft:#38210E;
+  --gold:#E8B53A; --gold-soft:#3A2D0D;
   --accent:var(--push); --accent-soft:var(--push-soft);
-  --ok:#3C7A47; --warn:#A86A12; --bad:#B8412C;
+  --ok:#5FBF72; --warn:#E8A33A; --bad:#F0583F;
   --radius:12px;
   --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
   --body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    color-scheme:dark;
-    --bg:#141819; --surface:#1D2224; --surface-2:#252B2D; --ink:#E9ECEA; --ink-2:#B3BBBC; --ink-3:#848D8F;
-    --line:#2F3639; --line-2:#3B4346;
-    --push:#E0705A; --push-soft:#3A2420; --pull:#6E9BDB; --pull-soft:#1E2A3A; --legs:#6DB57A; --legs-soft:#1D3022;
-    --ok:#6DB57A; --warn:#D9A04A; --bad:#E0705A;
-  }
-}
-:root[data-theme="dark"]{
-  color-scheme:dark;
-  --bg:#141819; --surface:#1D2224; --surface-2:#252B2D; --ink:#E9ECEA; --ink-2:#B3BBBC; --ink-3:#848D8F;
-  --line:#2F3639; --line-2:#3B4346;
-  --push:#E0705A; --push-soft:#3A2420; --pull:#6E9BDB; --pull-soft:#1E2A3A; --legs:#6DB57A; --legs-soft:#1D3022;
-  --ok:#6DB57A; --warn:#D9A04A; --bad:#E0705A;
 }
 body[data-day="push"]{--accent:var(--push);--accent-soft:var(--push-soft)}
 body[data-day="pull"]{--accent:var(--pull);--accent-soft:var(--pull-soft)}
@@ -89,7 +77,11 @@ main{max-width:640px;margin:0 auto;padding:14px 16px 150px;display:flex;flex-dir
 .progress b{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
 
 .ex{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 12px 10px}
-.ex.complete{border-color:var(--accent)}
+.ex.complete{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
+.ex.complete .ex-name::after{content:"  DONE";font-size:12px;letter-spacing:.12em;color:var(--gold);vertical-align:3px}
+.progress.full b{background:var(--gold)}
+.sync .streak{color:var(--gold);font-weight:600}
+.sync i{background:var(--gold)!important}
 .ex-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
 .ex-name{font-family:var(--display);font-weight:600;font-size:20px;line-height:1.1;letter-spacing:.01em}
 .ex-target{font-size:12.5px;color:var(--ink-3);margin-top:2px}
@@ -261,20 +253,29 @@ const CARDIO = {
   treadmill:{label:'Treadmill', f:['min','km','speed','incline','avgHr','maxHr','kcal']},
   stairs:{label:'Stairs', f:['min','floors','level','avgHr','maxHr','kcal']},
   rower:{label:'Rowing', f:['min','m','split','spm','avgHr','kcal']},
+  elliptical:{label:'Elliptical', f:['min','km','level','watts','avgHr','maxHr','kcal']},
   bike:{label:'Bike', f:['min','km','level','rpm','avgHr','kcal']},
   outdoor:{label:'Outdoor walk', f:['min','km','elev','steps','avgHr','kcal']}
 };
 const CF = {
-  min:['Time','min','numeric'], km:['Distance','km','decimal'], speed:['Avg speed','km/h','decimal'],
+  min:['Time','min','time'], watts:['Power','W','numeric'], km:['Distance','km','decimal'], speed:['Avg speed','km/h','decimal'],
   incline:['Incline','%','decimal'], avgHr:['Avg HR','bpm','numeric'], maxHr:['Max HR','bpm','numeric'],
   kcal:['Calories','kcal','numeric'], floors:['Floors','','numeric'], level:['Level','','numeric'],
   m:['Distance','m','numeric'], split:['Avg /500 m','m:ss','text'], spm:['Stroke rate','/min','numeric'],
   rpm:['Cadence','rpm','numeric'], elev:['Elevation','m','numeric'], steps:['Steps','','numeric']
 };
+function parseMin(v){
+  if(v==null||v==='') return 0;
+  const t=String(v).trim().replace(',', '.');
+  if(t.includes(':')){ const p=t.split(':').map(Number); if(p.some(isNaN)) return 0;
+    return p.length===3 ? p[0]*60+p[1]+p[2]/60 : p[0]+p[1]/60; }
+  const n=Number(t); return isNaN(n)?0:n;
+}
+function fmtMin(v){ const t=String(v).trim(); return t.includes(':') ? t+' min' : (Math.round(parseMin(t)*10)/10)+' min'; }
 function cardioText(c){
   const def = CARDIO[c.type] || CARDIO.treadmill, parts=[];
   const v = k => c[k]!=null && c[k]!=='';
-  if(v('min')) parts.push(c.min+' min');
+  if(v('min')) parts.push(fmtMin(c.min));
   if(v('km')) parts.push(c.km+' km');
   if(v('m')) parts.push(c.m+' m');
   if(v('speed')) parts.push(c.speed+' km/h');
@@ -284,6 +285,7 @@ function cardioText(c){
   if(v('split')) parts.push(c.split+' /500m');
   if(v('spm')) parts.push(c.spm+' spm');
   if(v('rpm')) parts.push(c.rpm+' rpm');
+  if(v('watts')) parts.push(c.watts+' W');
   if(v('elev')) parts.push(c.elev+' m climb');
   if(v('steps')) parts.push(c.steps+' steps');
   if(v('avgHr')||v('maxHr')) parts.push('HR '+(v('avgHr')?c.avgHr+' avg':'')+(v('avgHr')&&v('maxHr')?' / ':'')+(v('maxHr')?c.maxHr+' max':''));
@@ -291,7 +293,7 @@ function cardioText(c){
   return def.label+': '+(parts.join(' · ')||'no details');
 }
 function cardioMinutes(s){
-  if(Array.isArray(s.cardio)) return s.cardio.reduce((a,c)=>a+(Number(c.min)||0),0);
+  if(Array.isArray(s.cardio)) return Math.round(s.cardio.reduce((a,c)=>a+parseMin(c.min),0));
   return Number(s.walk)||0;
 }
 function cardioLines(s){
@@ -427,6 +429,13 @@ const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.6" stroke-li
 function render(){
   document.body.dataset.day = tab;
   document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected', String(t.dataset.t===tab)));
+  (function(){
+    const now=new Date(), wk=new Date(now); wk.setDate(now.getDate()-6);
+    const w=wk.toISOString().slice(0,10), m=todayISO().slice(0,7);
+    const wN=sessions.filter(x=>x.date>=w).length, mN=sessions.filter(x=>(x.date||'').slice(0,7)===m).length;
+    const sp=document.querySelector('#sync span');
+    if(sp) sp.innerHTML='<span class="streak">'+wN+'</span> this week · <span class="streak">'+mN+'</span> this month';
+  })();
   const nu = nextUpDay(), SUB={push:'chest · shoulders',pull:'back · biceps',legs:'back-safe'};
   ['push','pull','legs'].forEach(k=>{ const sm=document.querySelector('#tab-'+k+' small'); if(!sm) return;
     if(k===nu){ sm.textContent='next up'; sm.className='next'; } else { sm.textContent=SUB[k]; sm.className=''; } });
@@ -446,7 +455,7 @@ function renderDay(day){
   else h += '<div class="timing" style="color:var(--ink-3)">The clock starts when you tick your first set.</div>';
   const note = program.notes && program.notes[day];
   if(note) h += '<div class="coachnote"><b>Plan for this session'+(program.label?' · '+esc(program.label):'')+'</b>'+esc(note)+'</div>';
-  h += '<div class="progress" aria-label="Sets done"><b style="width:'+(totalSets?Math.round(doneSets/totalSets*100):0)+'%"></b></div>';
+  h += '<div class="progress'+(totalSets&&doneSets>=totalSets?' full':'')+'" aria-label="Sets done"><b style="width:'+(totalSets?Math.round(doneSets/totalSets*100):0)+'%"></b></div>';
 
   list.forEach(ex=>{
     const e = d.entries[ex.id] || {sets:[]};
@@ -497,7 +506,7 @@ function renderDay(day){
     h += '</div><div class="cgrid">';
     def.f.forEach(f=>{
       const [lab,unit,mode]=CF[f];
-      h += '<label>'+lab+'<div class="field"><input id="c-'+day+'-'+ci+'-'+f+'" data-cf="'+f+'" '+(mode==='text'?'type="text" inputmode="numeric" placeholder="2:30"':'type="number" step="any" inputmode="'+mode+'"')+' value="'+esc(c[f]??'')+'">'+(unit?'<span>'+unit+'</span>':'')+'</div></label>';
+      h += '<label>'+lab+'<div class="field"><input id="c-'+day+'-'+ci+'-'+f+'" data-cf="'+f+'" '+(mode==='time'?'type="text" inputmode="text" autocomplete="off" placeholder="25 or 2:30"':mode==='text'?'type="text" inputmode="numeric" placeholder="2:30"':'type="number" step="any" inputmode="'+mode+'"')+' value="'+esc(c[f]??'')+'">'+(unit?'<span>'+unit+'</span>':'')+'</div></label>';
     });
     h += '</div>'+(d.cardio.length>1?'<button type="button" class="link" style="color:var(--ink-3);align-self:flex-start" data-act="crm">Remove this cardio</button>':'')+'</div>';
   });
@@ -807,6 +816,8 @@ main.addEventListener('click',e=>{
       s.done=true; startRest(ex.rest||60);
       if(!d.startedAt) d.startedAt=new Date().toISOString();
       keepAwake(true);
+      const tot=(program[tab]||[]).reduce((a,x)=>a+x.sets,0), dn=Object.values(d.entries).reduce((a,e)=>a+(e.sets||[]).filter(x=>x&&x.done).length,0);
+      if(tot && dn>=tot) setTimeout(()=>toast('Every set done. That is how strength is built. Now the cardio.'),400);
     } else {
       s.done=false;
       if(!anyDone(d)){ delete d.startedAt; keepAwake(false); }
