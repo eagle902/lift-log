@@ -77,6 +77,7 @@ main{max-width:640px;margin:0 auto;padding:14px 16px 150px;display:flex;flex-dir
 .progress b{display:block;height:100%;background:var(--accent);width:0;transition:width .3s}
 
 .ex{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 12px 10px}
+.pair{display:inline-block;font-family:var(--display);font-size:14px;font-weight:700;letter-spacing:.04em;color:var(--accent);border:1.5px solid var(--accent);border-radius:6px;padding:0 6px;margin-right:8px;vertical-align:3px}
 .ex.complete{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold) inset}
 .ex.complete .ex-name::after{content:"  DONE";font-size:12px;letter-spacing:.12em;color:var(--gold);vertical-align:3px}
 .progress.full b{background:var(--gold)}
@@ -217,11 +218,16 @@ body[data-day="report"] .btn.primary{color:var(--bg)}
 <script>
 (function(){
 'use strict';
-const DAYS = {
-  push:{label:'Push', focus:'Chest · shoulders · triceps — 60 s rest on compounds'},
-  pull:{label:'Pull', focus:'Back · biceps · rear delts — no deadlift'},
-  legs:{label:'Legs', focus:'Back-safe: leg press, pull-through, hip thrust — no squat or deadlift'}
+const BASE_DAYS = {
+  push:{label:'Push', sub:'chest · shoulders', focus:'Chest · shoulders · triceps — 60 s rest on compounds'},
+  pull:{label:'Pull', sub:'back · biceps', focus:'Back · biceps · rear delts — no deadlift'},
+  legs:{label:'Legs', sub:'back-safe', focus:'Back-safe: leg press, pull-through, hip thrust — no squat or deadlift'}
 };
+const DAYS = {};
+function applyDays(){
+  ['push','pull','legs'].forEach(k=>{ DAYS[k]=Object.assign({}, BASE_DAYS[k], (program&&program.days&&program.days[k])||{}); });
+}
+function dayLabel(sess){ return sess.dayLabel || (BASE_DAYS[sess.day]?BASE_DAYS[sess.day].label:sess.day); }  // older sessions were Push/Pull/Legs
 const DEFAULT_PROGRAM = {
   push:[
     {id:'incline-bench',name:'Incline bench press',sets:4,reps:10,rest:60,hint:17.5,step:2.5},
@@ -317,7 +323,8 @@ function anyDone(d){ return Object.values(d.entries||{}).some(e => (e.sets||[]).
 function nextUpDay(){
   const last = {push:'', pull:'', legs:''};
   sessions.forEach(x => { if(last[x.day]!==undefined){ const k=(x.date||'')+(x.savedAt||''); if(k>last[x.day]) last[x.day]=k; } });
-  return ['push','pull','legs'].reduce((a,b) => last[b] < last[a] ? b : a);
+  const rot=['push','pull','legs'].filter(k=>!DAYS[k] || DAYS[k].rotation!==false);
+  return (rot.length?rot:['push','pull','legs']).reduce((a,b) => last[b] < last[a] ? b : a);
 }
 const newId = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 
@@ -345,7 +352,8 @@ function planDiff(o){
   const lines=[];
   ['push','pull','legs'].forEach(day=>{
     const oldL=program[day]||[], newL=o.program[day];
-    const L=DAYS[day].label;
+    const L=(o.days&&o.days[day]&&o.days[day].label)||DAYS[day].label;
+    if(o.days&&o.days[day]&&o.days[day].label&&o.days[day].label!==DAYS[day].label) lines.push(DAYS[day].label+' tab becomes '+o.days[day].label);
     newL.forEach(n=>{
       const old=oldL.find(x=>x.id===n.id);
       if(!old){lines.push(L+': add '+n.name+' '+n.sets+'×'+n.reps+(n.coach&&n.coach.w!=null?' at '+kg(n.coach.w)+' kg':''));return}
@@ -436,7 +444,8 @@ function render(){
     const sp=document.querySelector('#sync span');
     if(sp) sp.innerHTML='<span class="streak">'+wN+'</span> this week · <span class="streak">'+mN+'</span> this month';
   })();
-  const nu = nextUpDay(), SUB={push:'chest · shoulders',pull:'back · biceps',legs:'back-safe'};
+  const nu = nextUpDay(), SUB={push:DAYS.push.sub||'',pull:DAYS.pull.sub||'',legs:DAYS.legs.sub||''};
+  ['push','pull','legs'].forEach(k=>{ const t=document.getElementById('tab-'+k); if(t && t.firstChild && t.firstChild.nodeType===3) t.firstChild.nodeValue=DAYS[k].label; });
   ['push','pull','legs'].forEach(k=>{ const sm=document.querySelector('#tab-'+k+' small'); if(!sm) return;
     if(k===nu){ sm.textContent='next up'; sm.className='next'; } else { sm.textContent=SUB[k]; sm.className=''; } });
   document.getElementById('bar').hidden = (tab==='report');
@@ -463,7 +472,7 @@ function renderDay(day){
     const last = lastEntryFor(ex);
     const complete = e.sets.filter(s=>s.done).length >= ex.sets;
     h += '<section class="ex'+(complete?' complete':'')+'" data-ex="'+esc(ex.id)+'">';
-    h += '<div class="ex-head"><div><div class="ex-name">'+esc(ex.name)+'</div>'+
+    h += '<div class="ex-head"><div><div class="ex-name">'+(ex.tag?'<span class="pair">'+esc(ex.tag)+'</span>':'')+esc(ex.name)+'</div>'+
          '<div class="ex-target num">'+ex.sets+' × '+ex.reps+' · '+ex.rest+' s rest'+(ex.assist?' · weight = assist (lower is stronger)':'')+'</div></div>';
     if(confirmOpen[ex.id]){
       h += '<div class="confirm">Remove? <button type="button" class="danger" data-act="rm-yes">Yes</button><button type="button" data-act="rm-no">No</button></div>';
@@ -604,7 +613,7 @@ function renderReport(){
     const lines=(s.exercises||[]).map(e=>e.name+': '+setsText(e.sets)).join('\n');
     const cm=cardioMinutes(s);
     const extra=[s.startedAt?(fmtTime(s.startedAt)+(s.durationMin!=null?', '+s.durationMin+' min':'')):'', cm?('Cardio '+cm+' min'):'', s.energy?('Energy '+s.energy+'/5'):'', s.back!=null?('Back '+s.back+'/10'):'', s.bw?('Weight '+s.bw+' kg'):'', s.waist?('Waist '+s.waist+' cm'):''].filter(Boolean).join(' · ');
-    h += '<div class="h-item" data-sid="'+esc(s.id)+'"><div class="h-top"><div><div class="h-title" style="color:'+colors[s.day]+'">'+esc(DAYS[s.day]?DAYS[s.day].label:s.day)+' · '+esc(fmtDate(s.date))+'</div>'+
+    h += '<div class="h-item" data-sid="'+esc(s.id)+'"><div class="h-top"><div><div class="h-title" style="color:'+colors[s.day]+'">'+esc(dayLabel(s))+' · '+esc(fmtDate(s.date))+'</div>'+
       '<div class="h-sub">'+esc(extra||'')+''+'</div></div>'+
       (confirmOpen['s:'+s.id]?'<div class="confirm">Delete? <button type="button" class="danger" data-act="sdel-yes">Yes</button><button type="button" data-act="sdel-no">No</button></div>':'<button type="button" class="more" data-act="sdel">Delete</button>')+
       '</div><div class="h-body">'+esc(lines)+(s.notes?'\nNotes: '+esc(s.notes):'')+'</div></div>';
@@ -626,7 +635,8 @@ function renderReport(){
 /* ---------- report text ---------- */
 function sessionBlock(s){
   const out=[];
-  out.push((DAYS[s.day]?DAYS[s.day].label.toUpperCase():s.day)+' DAY — '+fmtDate(s.date)+(s.plan?' (plan '+s.plan+')':''));
+  const dl=dayLabel(s).toUpperCase();
+  out.push(dl+(/DAY$/.test(dl)?'':' DAY')+' — '+fmtDate(s.date)+(s.plan?' (plan '+s.plan+')':''));
   if(s.startedAt) out.push('Time: '+fmtTime(s.startedAt)+(s.endedAt?'–'+fmtTime(s.endedAt):'')+(s.durationMin!=null?' ('+s.durationMin+' min)':''));
   (s.exercises||[]).forEach(e=>{
     const ex = (program[s.day]||[]).find(x=>x.id===e.id) || {sets:e.target?e.target.sets:0,reps:e.target?e.target.reps:0,assist:e.assist};
@@ -656,7 +666,8 @@ function buildReport(mode){
     if(!wk.length) return 'No sessions in the last 7 days.';
     const backs=wk.filter(s=>s.back!=null).map(s=>s.back);
     const walks=wk.reduce((a,s)=>a+cardioMinutes(s),0);
-    let t='LIFT LOG — last 7 days: '+wk.length+' sessions ('+['push','pull','legs'].map(d=>wk.filter(s=>s.day===d).length+' '+d).join(', ')+')\n';
+    const lbls=[...new Set(wk.map(dayLabel))];
+    let t='LIFT LOG — last 7 days: '+wk.length+' sessions ('+lbls.map(l=>wk.filter(s=>dayLabel(s)===l).length+' '+l).join(', ')+')\n';
     t+='Cardio total: '+walks+' min'+(backs.length?' · Lower back range '+Math.min(...backs)+'–'+Math.max(...backs)+'/10':'')+'\n\n';
     return t+wk.map(sessionBlock).join('\n\n');
   }
@@ -784,9 +795,9 @@ main.addEventListener('click',e=>{
     else if(act==='plan-cancel'){planPending=null;planPreview=null;render();}
     else if(act==='plan-apply'){
       const o=planPending, now=new Date().toISOString();
-      const np={push:o.program.push,pull:o.program.pull,legs:o.program.legs,notes:o.notes||{},label:o.label||''};
+      const np={push:o.program.push,pull:o.program.pull,legs:o.program.legs,notes:o.notes||{},label:o.label||'',days:o.days||null};
       ['push','pull','legs'].forEach(d=>np[d].forEach(x=>{ if(x.coach) x.coach.setAt=now; }));
-      program=np; saveProgram(); planPending=null; planPreview=null; render(); toast('Plan '+(np.label||'')+' applied');
+      program=np; applyDays(); saveProgram(); planPending=null; planPreview=null; render(); toast('Plan '+(np.label||'')+' applied');
     }
     else if(act==='sdel'){confirmOpen['s:'+sid]=true;render();}
     else if(act==='sdel-no'){delete confirmOpen['s:'+sid];render();}
@@ -796,12 +807,12 @@ main.addEventListener('click',e=>{
     else if(act==='restore-no'){delete confirmOpen.restore;render();}
     else if(act==='restore-yes'){delete confirmOpen.restore;
       try{const o=JSON.parse(restoreDraft); if(!o||!Array.isArray(o.sessions)) throw 0;
-        sessions=o.sessions; if(o.program&&o.program.push&&o.program.pull&&o.program.legs) program=o.program;
+        sessions=o.sessions; if(o.program&&o.program.push&&o.program.pull&&o.program.legs){ program=o.program; applyDays(); }
         LS.set('ppl-sessions',sessions); LS.set('ppl-program',program); render(); toast('Restored '+sessions.length+' sessions');
       }catch(err){render(); toast('That text is not a Lift Log backup');}}
     else if(act==='reset'){confirmOpen.reset=true;render();}
     else if(act==='reset-no'){delete confirmOpen.reset;render();}
-    else if(act==='reset-yes'){delete confirmOpen.reset;program=clone(DEFAULT_PROGRAM);saveProgram();render();toast('Programme reset to the original plan');}
+    else if(act==='reset-yes'){delete confirmOpen.reset;program=clone(DEFAULT_PROGRAM);applyDays();saveProgram();render();toast('Programme reset to the original plan');}
     return;
   }
   const d=getDraft(tab);
@@ -848,7 +859,7 @@ function draftToSession(d){
     const sets=e.sets.filter(s=>s && (s.done || s.w!=null || s.r!=null)).map(s=>({w:s.w??null,r:s.r??null}));
     if(sets.length) exercises.push({id:ex.id,name:ex.name,assist:!!ex.assist,target:{sets:ex.sets,reps:ex.reps},sets});
   });
-  return {id:newId(),day:d.day,date:d.date||todayISO(),savedAt:new Date().toISOString(),exercises,
+  return {id:newId(),day:d.day,dayLabel:DAYS[d.day]?DAYS[d.day].label:d.day,date:d.date||todayISO(),savedAt:new Date().toISOString(),exercises,
     cardio:(d.cardio||[]).map(c=>{const o={type:c.type||'treadmill'};(CARDIO[o.type]||CARDIO.treadmill).f.forEach(f=>{if(c[f]!=null&&c[f]!=='') o[f]=c[f]});return o}).filter(c=>Object.keys(c).length>1),
     energy:d.energy??null, plan:program.label||'',
     startedAt:d.startedAt||null, endedAt:d.startedAt?new Date().toISOString():null, durationMin:d.startedAt?minsSince(d.startedAt):null,
@@ -863,7 +874,7 @@ document.getElementById('save').addEventListener('click',async()=>{
   keepAwake(false);
   const where='on this phone';
   reportMode='last'; tab='report'; LS.set('ppl-tab',tab); render(); window.scrollTo(0,0);
-  toast(DAYS[s.day].label+' session saved '+where);
+  toast(dayLabel(s)+' session saved '+where);
 });
 document.getElementById('copyToday').addEventListener('click',()=>{
   const d=getDraft(tab), s=draftToSession(d);
@@ -883,6 +894,7 @@ async function saveProgram(){
 }
 
 /* ---------- boot ---------- */
+applyDays();
 (function(){
   const inProgress = (tab!=='report') && (()=>{ const d=getDraft(tab); return anyDone(d) || Object.keys(d.entries||{}).length>0; })();
   if(!inProgress){ tab=nextUpDay(); LS.set('ppl-tab',tab); }
