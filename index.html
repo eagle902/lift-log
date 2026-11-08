@@ -227,6 +227,12 @@ const DAYS = {};
 function applyDays(){
   ['push','pull','legs'].forEach(k=>{ DAYS[k]=Object.assign({}, BASE_DAYS[k], (program&&program.days&&program.days[k])||{}); });
 }
+function planFinished(){
+  if(!program.appliedAt) return false;
+  const rot=['push','pull','legs'].filter(k=>!DAYS[k] || DAYS[k].rotation!==false);
+  return rot.every(k => sessions.some(x => x.day===k && (x.savedAt||'') > program.appliedAt));
+}
+const CHECKIN = '<div class="coachnote" style="border-left-color:var(--gold)"><b style="color:var(--gold)">Plan finished</b>Every session in this plan is done. Share your last 7 days so you get the next plan.<div style="margin-top:8px"><button type="button" class="btn primary" data-act="share-week">Share last 7 days</button></div></div>';
 function dayLabel(sess){ return sess.dayLabel || (BASE_DAYS[sess.day]?BASE_DAYS[sess.day].label:sess.day); }  // older sessions were Push/Pull/Legs
 const DEFAULT_PROGRAM = {
   push:[
@@ -338,12 +344,19 @@ const confirmOpen = {};                            // exercise id -> true
 let addOpen = false;
 let restoreDraft = '';
 let planPreview = null, planPending = null;
-function parsePlan(txt){
+async function parsePlan(txt){
   const at = txt.indexOf('code:');
   let raw = at>=0 ? txt.slice(at+5) : txt;
-  raw = raw.split(')')[0].replace(/\s+/g,'').replace(/-/g,'+').replace(/_/g,'/');
+  raw = raw.split(')')[0].replace(/\s+/g,'');
+  let zipped=false; if(raw.startsWith('Z.')){ zipped=true; raw=raw.slice(2); }
+  raw = raw.replace(/-/g,'+').replace(/_/g,'/');
   const bin = atob(raw);
-  const bytes = new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+  let bytes = new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i);
+  if(zipped){
+    if(typeof DecompressionStream==='undefined') throw new Error('old');
+    const buf = await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer();
+    bytes = new Uint8Array(buf);
+  }
   const o = JSON.parse(new TextDecoder().decode(bytes));
   if(!o || o.app!=='liftlog-plan' || !o.program || !Array.isArray(o.program.push) || !Array.isArray(o.program.pull) || !Array.isArray(o.program.legs)) throw new Error('bad');
   return o;
@@ -462,6 +475,7 @@ function renderDay(day){
        '<label for="date-'+day+'">Date <input type="date" id="date-'+day+'" value="'+esc(d.date)+'"></label></div>';
   if(d.startedAt) h += '<div class="timing"><i></i><span>Started '+esc(fmtTime(d.startedAt))+' · <span id="elapsed" data-start="'+esc(d.startedAt)+'">'+minsSince(d.startedAt)+' min</span> so far</span></div>';
   else h += '<div class="timing" style="color:var(--ink-3)">The clock starts when you tick your first set.</div>';
+  if(planFinished()) h += CHECKIN;
   const note = program.notes && program.notes[day];
   if(note) h += '<div class="coachnote"><b>Plan for this session'+(program.label?' · '+esc(program.label):'')+'</b>'+esc(note)+'</div>';
   h += '<div class="progress'+(totalSets&&doneSets>=totalSets?' full':'')+'" aria-label="Sets done"><b style="width:'+(totalSets?Math.round(doneSets/totalSets*100):0)+'%"></b></div>';
@@ -567,7 +581,8 @@ function spark(pts, color){
 
 function renderReport(){
   const text = buildReport(reportMode);
-  let h = '<section class="panel"><h2>Report for Claude</h2>'+
+  const finished = planFinished();
+  let h = (finished?CHECKIN:'')+'<section class="panel"><h2>Report for Claude</h2>'+
     '<div class="seg" role="group" aria-label="Report range">'+
       '<button type="button" data-act="mode" data-v="last" aria-pressed="'+(reportMode==='last')+'">Last session</button>'+
       '<button type="button" data-act="mode" data-v="week" aria-pressed="'+(reportMode==='week')+'">Last 7 days</button>'+
@@ -581,9 +596,9 @@ function renderReport(){
     h += '<div class="diff"><b>'+esc(planPreview.title)+'</b>'+planPreview.lines.map(l=>'<div>'+esc(l)+'</div>').join('')+'</div>'+
       '<div class="row2"><button type="button" class="btn primary" data-act="plan-apply">Apply plan</button><button type="button" class="btn" data-act="plan-cancel">Cancel</button></div>';
   } else {
-    h += '<div class="hint">Paste the plan update you received (the whole message, including the code line).</div>'+
+    h += '<div class="hint">Copy the whole plan message, then tap Paste plan. Or paste it into the box yourself.</div>'+
       '<textarea class="report" id="planText" style="min-height:80px" placeholder="LIFTLOG PLAN …"></textarea>'+
-      '<button type="button" class="btn" data-act="plan-check">Check plan</button>';
+      '<div class="row2"><button type="button" class="btn primary" data-act="plan-paste">Paste plan</button><button type="button" class="btn" data-act="plan-check">Check pasted text</button></div>';
   }
   h += '</section>';
 
@@ -695,6 +710,17 @@ function shareText(text, fallbackEl){
     navigator.share({title:'Lift Log', text}).catch(err=>{ if(err && err.name!=='AbortError') copyText(text, fallbackEl); });
   } else copyText(text, fallbackEl);
 }
+async function loadPlanText(v){
+  try{ planPending=await parsePlan(v); planPreview=planDiff(planPending); tab='report'; LS.set('ppl-tab',tab); render(); const ip=document.getElementById('importPanel'); if(ip) ip.scrollIntoView({block:'start'}); }
+  catch(err){ toast(err&&err.message==='old'?'This phone cannot read the short code. Ask for the long version.':'That text is not a Lift Log plan. Copy the whole message, including the code line.'); }
+}
+function pastePlan(){
+  if(!(navigator.clipboard && navigator.clipboard.readText)){ toast('Paste is not available here. Long-press the box and choose Paste.'); return; }
+  navigator.clipboard.readText().then(t=>{
+    if(!t || t.indexOf('code:')<0){ toast('No plan on the clipboard. Copy the whole plan message first.'); return; }
+    loadPlanText(t);
+  }, ()=>toast('Paste was blocked. Long-press the box and choose Paste.'));
+}
 let toastT;
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2600)}
 
@@ -789,13 +815,14 @@ main.addEventListener('click',e=>{
     else if(act==='plan-check'){
       const v=(document.getElementById('planText').value||'').trim();
       if(!v){toast('Paste the plan update into the box first');return}
-      try{ planPending=parsePlan(v); planPreview=planDiff(planPending); render(); document.getElementById('importPanel').scrollIntoView({block:'start'}); }
-      catch(err){ toast('That text is not a Lift Log plan. Paste the whole message, including the code line.'); }
+      loadPlanText(v);
     }
+    else if(act==='plan-paste'){ pastePlan(); }
+    else if(act==='share-week'){ shareText(buildReport('week')); }
     else if(act==='plan-cancel'){planPending=null;planPreview=null;render();}
     else if(act==='plan-apply'){
       const o=planPending, now=new Date().toISOString();
-      const np={push:o.program.push,pull:o.program.pull,legs:o.program.legs,notes:o.notes||{},label:o.label||'',days:o.days||null};
+      const np={push:o.program.push,pull:o.program.pull,legs:o.program.legs,notes:o.notes||{},label:o.label||'',days:o.days||null,appliedAt:new Date().toISOString()};
       ['push','pull','legs'].forEach(d=>np[d].forEach(x=>{ if(x.coach) x.coach.setAt=now; }));
       program=np; applyDays(); saveProgram(); planPending=null; planPreview=null; render(); toast('Plan '+(np.label||'')+' applied');
     }
@@ -815,6 +842,7 @@ main.addEventListener('click',e=>{
     else if(act==='reset-yes'){delete confirmOpen.reset;program=clone(DEFAULT_PROGRAM);applyDays();saveProgram();render();toast('Programme reset to the original plan');}
     return;
   }
+  if(act==='share-week'){ shareText(buildReport('week')); return; }
   const d=getDraft(tab);
   if(act==='done'&&ex){
     const i=+b.closest('.set').dataset.i;
@@ -852,6 +880,34 @@ main.addEventListener('click',e=>{
   else if(act==='pain'){const v=+b.dataset.v;d.back=(d.back===v)?null:v;putDraft(d);render();}
 });
 
+function mergeInto(a,b){
+  (b.exercises||[]).forEach(e=>{
+    const f=(a.exercises=a.exercises||[]).find(x=>x.id===e.id||x.name===e.name);
+    if(f) f.sets=(f.sets||[]).concat(e.sets||[]); else a.exercises.push(e);
+  });
+  a.cardio=(a.cardio||[]).concat(b.cardio||[]);
+  ['energy','back','bw','waist'].forEach(k=>{ if(b[k]!=null) a[k]=b[k]; });
+  if(b.notes) a.notes=a.notes?(a.notes+' / '+b.notes):b.notes;
+  a.startedAt=a.startedAt||b.startedAt;
+  a.endedAt=b.endedAt||b.savedAt||a.endedAt;
+  if(a.startedAt && a.endedAt) a.durationMin=Math.max(0,Math.round((new Date(a.endedAt)-new Date(a.startedAt))/60000));
+  a.savedAt=b.savedAt||a.savedAt;
+  return a;
+}
+const GAP_MIN=45;
+function gapMinutes(prev,next){
+  const end=new Date(prev.endedAt||prev.savedAt).getTime(), start=new Date(next.startedAt||next.savedAt).getTime();
+  return (start-end)/60000;
+}
+function joinSplitSessions(){
+  const asc=sessions.slice().sort((a,b)=>(a.date+(a.savedAt||'')).localeCompare(b.date+(b.savedAt||'')));
+  const out=[];
+  asc.forEach(x=>{
+    const p=out[out.length-1];
+    if(p && p.day===x.day && p.date===x.date && gapMinutes(p,x)<GAP_MIN) mergeInto(p,x); else out.push(x);
+  });
+  if(out.length!==sessions.length){ sessions=out; LS.set('ppl-sessions',sessions); }
+}
 function draftToSession(d){
   const exercises=[];
   (program[d.day]||[]).forEach(ex=>{
@@ -867,14 +923,18 @@ function draftToSession(d){
 }
 
 document.getElementById('save').addEventListener('click',async()=>{
-  const d=getDraft(tab), s=draftToSession(d);
+  const d=getDraft(tab); let s=draftToSession(d);
   if(!s.exercises.length && !s.cardio.length && s.bw==null){toast('Log at least one set or some cardio before saving');return}
-  sessions.push(s); LS.set('ppl-sessions',sessions);
+  const prev=sortedSessions().find(x=>x.day===s.day && x.date===s.date);
+  const joined = prev && gapMinutes(prev,s)<GAP_MIN;
+  if(joined) s=mergeInto(prev,s); else sessions.push(s);
+  LS.set('ppl-sessions',sessions);
   LS.del(draftKey(tab));
   keepAwake(false);
   const where='on this phone';
   reportMode='last'; tab='report'; LS.set('ppl-tab',tab); render(); window.scrollTo(0,0);
-  toast(dayLabel(s)+' session saved '+where);
+  toast(joined ? 'Added to your '+dayLabel(s)+' session from earlier today' : dayLabel(s)+' session saved '+where);
+  shareText(buildReport('last'));
 });
 document.getElementById('copyToday').addEventListener('click',()=>{
   const d=getDraft(tab), s=draftToSession(d);
@@ -895,6 +955,7 @@ async function saveProgram(){
 
 /* ---------- boot ---------- */
 applyDays();
+joinSplitSessions();
 (function(){
   const inProgress = (tab!=='report') && (()=>{ const d=getDraft(tab); return anyDone(d) || Object.keys(d.entries||{}).length>0; })();
   if(!inProgress){ tab=nextUpDay(); LS.set('ppl-tab',tab); }
