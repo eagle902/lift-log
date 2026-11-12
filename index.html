@@ -22,7 +22,7 @@
   --bg:#0F1113; --surface:#181B1E; --surface-2:#202429; --ink:#F2EFEA; --ink-2:#BDB7AE; --ink-3:#8C867D;
   --line:#2A2E33; --line-2:#3A3F46;
   /* Push = power (fire red) · Pull = discipline (steel blue) · Legs = grit (bronze) · Gold = achievement */
-  --push:#E0402A; --push-soft:#3A1711; --pull:#3F6FE0; --pull-soft:#152038; --legs:#CF6A1C; --legs-soft:#38210E;
+  --push:#E0402A; --push-soft:#3A1711; --pull:#3F6FE0; --pull-soft:#152038; --legs:#CF6A1C; --legs-soft:#38210E; --cardio:#22A38F; --cardio-soft:#0E2E2A;
   --gold:#E8B53A; --gold-soft:#3A2D0D;
   --accent:var(--push); --accent-soft:var(--push-soft);
   --ok:#5FBF72; --warn:#E8A33A; --bad:#F0583F;
@@ -33,6 +33,7 @@
 body[data-day="push"]{--accent:var(--push);--accent-soft:var(--push-soft)}
 body[data-day="pull"]{--accent:var(--pull);--accent-soft:var(--pull-soft)}
 body[data-day="legs"]{--accent:var(--legs);--accent-soft:var(--legs-soft)}
+body[data-day="cardio"]{--accent:var(--cardio);--accent-soft:var(--cardio-soft)}
 body[data-day="report"]{--accent:var(--ink);--accent-soft:var(--surface-2)}
 
 *{box-sizing:border-box}
@@ -52,7 +53,7 @@ button{cursor:pointer}
 .sync i{width:8px;height:8px;border-radius:50%;background:var(--ink-3);display:inline-block}
 .sync.cloud i{background:var(--ok)} .sync.local i{background:var(--warn)}
 
-.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;max-width:640px;margin:10px auto 0}
+.tabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;max-width:640px;margin:10px auto 0}
 .tab{border:1px solid var(--line-2);background:var(--surface);border-radius:10px;padding:8px 4px 7px;font-family:var(--display);font-weight:600;font-size:17px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2);display:flex;flex-direction:column;align-items:center;gap:1px}
 .tab small{font-family:var(--body);font-size:10.5px;letter-spacing:0;text-transform:none;font-weight:500;color:var(--ink-3)}
 .tab[aria-selected="true"]{color:#fff;border-color:transparent}
@@ -60,6 +61,11 @@ button{cursor:pointer}
 .tab[data-t="push"][aria-selected="true"]{background:var(--push)}
 .tab[data-t="pull"][aria-selected="true"]{background:var(--pull)}
 .tab[data-t="legs"][aria-selected="true"]{background:var(--legs)}
+.tab[data-t="cardio"][aria-selected="true"]{background:var(--cardio)}
+.tab{font-size:15.5px;padding:8px 2px 7px}.tab small{font-size:10px}
+.cweek{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px;display:flex;flex-direction:column;gap:8px}
+.cweek .big{font-family:var(--display);font-weight:700;font-size:30px;line-height:1;color:var(--accent)}
+.cweek .row{display:flex;align-items:baseline;justify-content:space-between;gap:10px;font-size:13px;color:var(--ink-2)}
 .tab[data-t="report"][aria-selected="true"]{background:var(--ink);color:var(--bg)}
 .tab[data-t="report"][aria-selected="true"] small{color:var(--bg);opacity:.8}
 
@@ -199,6 +205,7 @@ body[data-day="report"] .btn.primary{color:var(--bg)}
     <button class="tab" role="tab" data-t="push" id="tab-push">Push<small>chest · shoulders</small></button>
     <button class="tab" role="tab" data-t="pull" id="tab-pull">Pull<small>back · biceps</small></button>
     <button class="tab" role="tab" data-t="legs" id="tab-legs">Legs<small>back-safe</small></button>
+    <button class="tab" role="tab" data-t="cardio" id="tab-cardio">Cardio<small>in between</small></button>
     <button class="tab" role="tab" data-t="report" id="tab-report">Report<small>progress</small></button>
   </nav>
 </header>
@@ -221,11 +228,12 @@ body[data-day="report"] .btn.primary{color:var(--bg)}
 const BASE_DAYS = {
   push:{label:'Push', sub:'chest · shoulders', focus:'Chest · shoulders · triceps — 60 s rest on compounds'},
   pull:{label:'Pull', sub:'back · biceps', focus:'Back · biceps · rear delts — no deadlift'},
-  legs:{label:'Legs', sub:'back-safe', focus:'Back-safe: leg press, pull-through, hip thrust — no squat or deadlift'}
+  legs:{label:'Legs', sub:'back-safe', focus:'Back-safe: leg press, pull-through, hip thrust — no squat or deadlift'},
+  cardio:{label:'Cardio', sub:'in between', focus:'Cardio on the days between gym sessions. Easy pace, steady breathing - you should be able to talk.', rotation:false, goalMin:120}
 };
 const DAYS = {};
 function applyDays(){
-  ['push','pull','legs'].forEach(k=>{ DAYS[k]=Object.assign({}, BASE_DAYS[k], (program&&program.days&&program.days[k])||{}); });
+  ['push','pull','legs','cardio'].forEach(k=>{ DAYS[k]=Object.assign({}, BASE_DAYS[k], (program&&program.days&&program.days[k])||{}); });
 }
 function planFinished(){
   if(!program.appliedAt) return false;
@@ -233,6 +241,12 @@ function planFinished(){
   return rot.every(k => sessions.some(x => x.day===k && (x.savedAt||'') > program.appliedAt));
 }
 const CHECKIN = '<div class="coachnote" style="border-left-color:var(--gold)"><b style="color:var(--gold)">Plan finished</b>Every session in this plan is done. Share your last 7 days so you get the next plan.<div style="margin-top:8px"><button type="button" class="btn primary" data-act="share-week">Share last 7 days</button></div></div>';
+const CARDIO_MENU = "Pick one - whatever you will actually enjoy today:\n"+
+ "- Outdoor walk 30-40 min, brisk, with a podcast or a call.\n"+
+ "- Treadmill 30 min, 5.5 km/h, 6-8% incline (or hill intervals: 2 min steep / 2 min easy).\n"+
+ "- Bike 30 min, steady, or Elliptical 25-30 min.\n"+
+ "- Stairs 20 min, or Rowing 20 min at a pace you can hold.\n"+
+ "Aim: breathing harder but still able to talk (heart rate around 110-125).";
 function dayLabel(sess){ return sess.dayLabel || (BASE_DAYS[sess.day]?BASE_DAYS[sess.day].label:sess.day); }  // older sessions were Push/Pull/Legs
 const DEFAULT_PROGRAM = {
   push:[
@@ -262,7 +276,7 @@ const DEFAULT_PROGRAM = {
 };
 
 const CARDIO = {
-  treadmill:{label:'Treadmill', f:['min','km','speed','incline','avgHr','maxHr','kcal']},
+  treadmill:{label:'Treadmill', f:['min','km','speed','incline','elev','avgHr','maxHr','kcal']},
   stairs:{label:'Stairs', f:['min','floors','level','avgHr','maxHr','kcal']},
   rower:{label:'Rowing', f:['min','m','split','spm','avgHr','kcal']},
   elliptical:{label:'Elliptical', f:['min','km','level','watts','avgHr','maxHr','kcal']},
@@ -274,7 +288,7 @@ const CF = {
   incline:['Incline','%','decimal'], avgHr:['Avg HR','bpm','numeric'], maxHr:['Max HR','bpm','numeric'],
   kcal:['Calories','kcal','numeric'], floors:['Floors','','numeric'], level:['Level','','numeric'],
   m:['Distance','m','numeric'], split:['Avg /500 m','m:ss','text'], spm:['Stroke rate','/min','numeric'],
-  rpm:['Cadence','rpm','numeric'], elev:['Elevation','m','numeric'], steps:['Steps','','numeric']
+  rpm:['Cadence','rpm','numeric'], elev:['Climb','m','numeric'], steps:['Steps','','numeric']
 };
 function parseMin(v){
   if(v==null||v==='') return 0;
@@ -390,7 +404,7 @@ function getDraft(day){
   let d = LS.get(draftKey(day), null);
   if(!d) d = {day, date:todayISO(), entries:{}, back:null, bw:'', waist:'', notes:'', energy:null};
   if(!Array.isArray(d.cardio)){
-    d.cardio=[{type:'treadmill'}];
+    d.cardio=[{type: day==='cardio' ? 'outdoor' : 'treadmill'}];
     if(d.walk){d.cardio[0].min=d.walk;}
   }
   return d;
@@ -458,7 +472,8 @@ function render(){
     if(sp) sp.innerHTML='<span class="streak">'+wN+'</span> this week · <span class="streak">'+mN+'</span> this month';
   })();
   const nu = nextUpDay(), SUB={push:DAYS.push.sub||'',pull:DAYS.pull.sub||'',legs:DAYS.legs.sub||''};
-  ['push','pull','legs'].forEach(k=>{ const t=document.getElementById('tab-'+k); if(t && t.firstChild && t.firstChild.nodeType===3) t.firstChild.nodeValue=DAYS[k].label; });
+  ['push','pull','legs','cardio'].forEach(k=>{ const t=document.getElementById('tab-'+k); if(t && t.firstChild && t.firstChild.nodeType===3) t.firstChild.nodeValue=DAYS[k].label; });
+  { const sm=document.querySelector('#tab-cardio small'); if(sm){ sm.textContent=DAYS.cardio.sub||''; sm.className=''; } }
   ['push','pull','legs'].forEach(k=>{ const sm=document.querySelector('#tab-'+k+' small'); if(!sm) return;
     if(k===nu){ sm.textContent='next up'; sm.className='next'; } else { sm.textContent=SUB[k]; sm.className=''; } });
   document.getElementById('bar').hidden = (tab==='report');
@@ -471,14 +486,25 @@ function renderDay(day){
   let doneSets=0,totalSets=0;
   list.forEach(ex=>{totalSets+=ex.sets; const e=d.entries[ex.id]; if(e) doneSets+=e.sets.filter(s=>s.done).length});
   let h = '';
+  if(day==='cardio'){
+    const wk=new Date(); wk.setDate(wk.getDate()-6); const w=wk.toISOString().slice(0,10);
+    const recent=sessions.filter(x=>x.date>=w);
+    const mins=recent.reduce((a,x)=>a+cardioMinutes(x),0), goal=DAYS.cardio.goalMin||120;
+    const days=recent.filter(x=>x.day==='cardio').length;
+    h += '<div class="cweek"><div class="row"><span>Cardio, last 7 days</span><span>goal '+goal+' min</span></div>'+
+      '<div class="row"><span class="big num">'+mins+' min</span><span>'+days+' cardio day'+(days===1?'':'s')+'</span></div>'+
+      '<div class="progress'+(mins>=goal?' full':'')+'"><b style="width:'+Math.min(100,Math.round(mins/goal*100))+'%"></b></div>'+
+      '<div class="pain-note">Counts your gym warm-ups too.'+(mins>=goal?' Goal reached - well done.':' '+(goal-mins)+' min to go.')+'</div></div>';
+  }
   h += '<div class="meta"><div class="focus">'+esc(DAYS[day].focus)+'</div>'+
        '<label for="date-'+day+'">Date <input type="date" id="date-'+day+'" value="'+esc(d.date)+'"></label></div>';
-  if(d.startedAt) h += '<div class="timing"><i></i><span>Started '+esc(fmtTime(d.startedAt))+' · <span id="elapsed" data-start="'+esc(d.startedAt)+'">'+minsSince(d.startedAt)+' min</span> so far</span></div>';
+  if(day==='cardio'){}
+  else if(d.startedAt) h += '<div class="timing"><i></i><span>Started '+esc(fmtTime(d.startedAt))+' · <span id="elapsed" data-start="'+esc(d.startedAt)+'">'+minsSince(d.startedAt)+' min</span> so far</span></div>';
   else h += '<div class="timing" style="color:var(--ink-3)">The clock starts when you tick your first set.</div>';
   if(planFinished()) h += CHECKIN;
-  const note = program.notes && program.notes[day];
-  if(note) h += '<div class="coachnote"><b>Plan for this session'+(program.label?' · '+esc(program.label):'')+'</b>'+esc(note)+'</div>';
-  h += '<div class="progress'+(totalSets&&doneSets>=totalSets?' full':'')+'" aria-label="Sets done"><b style="width:'+(totalSets?Math.round(doneSets/totalSets*100):0)+'%"></b></div>';
+  const note = (program.notes && program.notes[day]) || (day==='cardio' ? CARDIO_MENU : '');
+  if(note) h += '<div class="coachnote"><b>'+(day==='cardio'?'Ideas for today':'Plan for this session'+(program.label?' · '+esc(program.label):''))+'</b>'+esc(note)+'</div>';
+  if(day!=='cardio') h += '<div class="progress'+(totalSets&&doneSets>=totalSets?' full':'')+'" aria-label="Sets done"><b style="width:'+(totalSets?Math.round(doneSets/totalSets*100):0)+'%"></b></div>';
 
   list.forEach(ex=>{
     const e = d.entries[ex.id] || {sets:[]};
@@ -509,7 +535,8 @@ function renderDay(day){
     h += '</section>';
   });
 
-  if(addOpen){
+  if(day==='cardio'){}
+  else if(addOpen){
     h += '<form class="addform" id="addform"><label class="full">Exercise name<input id="add-name" required placeholder="e.g. Cable lateral raise"></label>'+
       '<label>Sets<input id="add-sets" type="number" inputmode="numeric" value="3" min="1" max="8"></label>'+
       '<label>Reps<input id="add-reps" type="number" inputmode="numeric" value="12" min="1" max="30"></label>'+
@@ -538,7 +565,7 @@ function renderDay(day){
   const painColor = v => v==null?'':(v<=3?'var(--ok)':v<=5?'var(--warn)':'var(--bad)');
   const EN=['Empty','Low','OK','Good','Plenty'];
   h += '<section class="extras"><h2>How it went</h2>'+
-    '<div><div class="pain-note" style="margin-bottom:5px">Energy on the last sets</div><div class="energy">';
+    '<div><div class="pain-note" style="margin-bottom:5px">'+(day==='cardio'?'Energy today':'Energy on the last sets')+'</div><div class="energy">';
   for(let v=1; v<=5; v++) h += '<button type="button" data-act="energy" data-v="'+v+'" aria-pressed="'+(d.energy===v)+'">'+v+' '+EN[v-1]+'</button>';
   h += '</div></div>'+
     '<div><div class="pain-note" style="margin-bottom:5px">Lower back today (0 = none, 10 = severe)</div><div class="pain">';
@@ -603,7 +630,7 @@ function renderReport(){
   h += '</section>';
 
   const rows = progressRows();
-  const colors={push:'var(--push)',pull:'var(--pull)',legs:'var(--legs)'};
+  const colors={push:'var(--push)',pull:'var(--pull)',legs:'var(--legs)',cardio:'var(--cardio)'};
   h += '<section class="panel"><h2>Top set per exercise</h2>';
   if(!sessions.length){ h += '<div class="empty">Save your first session and your progress shows up here.</div>'; }
   else{
@@ -612,10 +639,10 @@ function renderReport(){
       if(!pts.length) return;
       const f=pts[0].w, n=pts[pts.length-1].w, diff=Math.round((n-f)*100)/100;
       const better = ex.assist ? diff<0 : diff>0;
-      const cls = diff===0?'flat':(better?'up':'down');
+      const cls = diff===0?'flat':(better?'up':(ex.assist?'flat':'down'));
       const sign = diff>0?'+':'';
       h += '<tr><td><span class="dot" style="background:'+colors[day]+'"></span>'+esc(ex.name)+(ex.assist?' <span class="h-sub">(assist)</span>':'')+'</td>'+
-        '<td class="r num">'+kg(f)+'</td><td class="r num">'+kg(n)+'</td><td class="r num '+cls+'">'+(diff===0?'—':sign+kg(diff))+'</td><td>'+spark(pts,colors[day])+'</td></tr>';
+        '<td class="r num">'+kg(f)+'</td><td class="r num">'+kg(n)+'</td><td class="r num '+cls+'">'+(diff===0?'—':(ex.assist?(diff<0?kg(-diff)+' less help':kg(diff)+' more help'):sign+kg(diff)))+'</td><td>'+spark(pts,colors[day])+'</td></tr>';
     });
     h += '</tbody></table></div>';
   }
@@ -661,12 +688,12 @@ function sessionBlock(s){
     if(before){
       const pe=before.exercises.find(y=>y.id===e.id||y.name===e.name);
       const a=topWeight(e.sets,e.assist), b=topWeight(pe.sets,e.assist);
-      if(a!=null&&b!=null){const d=Math.round((a-b)*100)/100; prevTxt=' | prev top '+kg(b)+(d?(' → '+(d>0?'+':'')+kg(d)+' kg'):' (same)');}
+      if(a!=null&&b!=null){const d=Math.round((a-b)*100)/100; prevTxt = e.assist ? (' | prev assist '+kg(b)+(d?(' → '+kg(a)+' ('+(d<0?kg(-d)+' kg less help':kg(d)+' kg more help')+')'):' (same)')) : (' | prev top '+kg(b)+(d?(' → '+(d>0?'+':'')+kg(d)+' kg'):' (same)'));}
     }
     out.push('- '+e.name+(e.assist?' [assist kg]':'')+' ('+(e.target?e.target.sets+'x'+e.target.reps:'')+'): '+setsText(e.sets)+prevTxt);
   });
   cardioLines(s).forEach(l=>out.push('Cardio — '+l));
-  const extra=[s.energy?('Energy on last sets '+s.energy+'/5'):'', s.back!=null?('Lower back '+s.back+'/10'):'', s.bw?('Weight '+s.bw+' kg'):'', s.waist?('Waist '+s.waist+' cm'):''].filter(Boolean);
+  const extra=[s.energy?((s.day==='cardio'?'Energy ':'Energy on last sets ')+s.energy+'/5'):'', s.back!=null?('Lower back '+s.back+'/10'):'', s.bw?('Weight '+s.bw+' kg'):'', s.waist?('Waist '+s.waist+' cm'):''].filter(Boolean);
   if(extra.length) out.push(extra.join(' · '));
   if(s.notes) out.push('Notes: '+s.notes);
   return out.join('\n');
@@ -957,7 +984,7 @@ async function saveProgram(){
 applyDays();
 joinSplitSessions();
 (function(){
-  const inProgress = (tab!=='report') && (()=>{ const d=getDraft(tab); return anyDone(d) || Object.keys(d.entries||{}).length>0; })();
+  const inProgress = (tab!=='report') && (()=>{ const d=getDraft(tab); return anyDone(d) || Object.keys(d.entries||{}).length>0 || (d.cardio||[]).some(c=>Object.keys(c).length>1); })();
   if(!inProgress){ tab=nextUpDay(); LS.set('ppl-tab',tab); }
   else if(anyDone(getDraft(tab))) keepAwake(true);
 })();
