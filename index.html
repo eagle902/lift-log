@@ -166,6 +166,7 @@ body[data-day="report"] .btn.primary{color:var(--bg)}
 .bar{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px))}
 .bar-in{max-width:640px;margin:0 auto;display:flex;gap:8px;align-items:center}
 .rest{flex:0 0 auto;min-width:78px;border:1px solid var(--line-2);background:var(--surface-2);border-radius:10px;padding:6px 8px;text-align:center;line-height:1.05}
+#save.armed{background:var(--gold);border-color:var(--gold);color:#111;font-size:13.5px}
 .snd{flex:0 0 44px;height:52px;border:1px solid var(--line-2);background:var(--surface-2);border-radius:10px;display:grid;place-items:center;color:var(--ink-3)}
 .snd svg{width:22px;height:22px}
 .snd[aria-pressed="true"]{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
@@ -1001,7 +1002,14 @@ function draftToSession(d){
     back:d.back,bw:d.bw===''||d.bw==null?null:Number(d.bw),waist:d.waist===''||d.waist==null?null:Number(d.waist),notes:(d.notes||'').trim()};
 }
 
+let saveArmed=false, saveArmT=null;
+function disarmSave(){ saveArmed=false; clearTimeout(saveArmT); const b=document.getElementById('save'); if(b){ b.classList.remove('armed'); b.textContent='Save'; } }
 document.getElementById('save').addEventListener('click',async()=>{
+  if(!saveArmed){
+    saveArmed=true; const b=document.getElementById('save'); b.classList.add('armed'); b.textContent='Tap again to save';
+    clearTimeout(saveArmT); saveArmT=setTimeout(disarmSave,4000); return;
+  }
+  disarmSave();
   const d=getDraft(tab); let s=draftToSession(d);
   if(!s.exercises.length && !s.cardio.length && s.bw==null){toast('Log at least one set or some cardio before saving');return}
   const prev=sortedSessions().find(x=>x.day===s.day && x.date===s.date);
