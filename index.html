@@ -614,16 +614,33 @@ function renderDay(day){
   main.innerHTML = h;
 }
 
+function bodyWeight(){ const b=sortedSessions().find(x=>x.bw); return b?Number(b.bw):83.7; }
+// One number per session: the best set, scored so weight AND reps both count.
+// Weighted: estimated one-rep max (Epley, w x (1 + reps/30)).
+// Assisted: same, using the weight you actually lift (body weight minus help).
+// Timed: seconds held. Bodyweight-only: reps.
+function perfKind(ex){ if(isTimed(ex)) return 's'; if(!ex.assist && !(ex.coach&&ex.coach.w) && !ex.hint) return 'reps'; return 'kg'; }
+function perfOf(sets, ex){
+  const kind=perfKind(ex), bw=bodyWeight(); const vals=[];
+  (sets||[]).forEach(t=>{
+    const r=Number(t.r), w=Number(t.w)||0; if(!r) return;
+    if(kind==='s'||kind==='reps') vals.push(r);
+    else { const lifted = ex.assist ? Math.max(0,bw-w) : w; if(lifted) vals.push(lifted*(1+r/30)); }
+  });
+  if(!vals.length) return null;
+  return Math.round(vals.reduce((a,b)=>a+b,0)/vals.length*2)/2;  // average of all sets, so fading sets count
+}
 function progressRows(){
-  const rows=[];
+  const rows=[], seen=new Set();
   ['push','pull','legs'].forEach(day=>{
     (program[day]||[]).forEach(ex=>{
+      if(seen.has(ex.id)) return; seen.add(ex.id);
       const pts=[];
       sortedSessions().slice().reverse().forEach(s=>{
         const e=(s.exercises||[]).find(x=>x.id===ex.id||x.name===ex.name);
-        if(e){const t=topWeight(e.sets||[],ex.assist); if(t!=null) pts.push({date:s.date,w:t});}
+        if(e){const v=perfOf(e.sets,ex); if(v!=null) pts.push({date:s.date,w:v});}
       });
-      rows.push({day,ex,pts});
+      rows.push({day,ex,pts,kind:perfKind(ex)});
     });
   });
   return rows;
@@ -666,18 +683,18 @@ function renderReport(){
 
   const rows = progressRows();
   const colors={push:'var(--push)',pull:'var(--pull)',legs:'var(--legs)',cardio:'var(--cardio)'};
-  h += '<section class="panel"><h2>Top set per exercise</h2>';
+  h += '<section class="panel"><h2>Strength score per exercise</h2><div class="hint">The average of all your sets each session, counting weight and reps together (estimated one-rep max). Fewer reps at the same weight, or sets that fade, show as a drop. Assisted moves use the weight you actually lift. Planks and hangs show seconds.</div>';
   if(!sessions.length){ h += '<div class="empty">Save your first session and your progress shows up here.</div>'; }
   else{
     h += '<div style="overflow-x:auto"><table class="prog"><thead><tr><th>Exercise</th><th class="r">First</th><th class="r">Now</th><th class="r">Change</th><th></th></tr></thead><tbody>';
-    rows.forEach(({day,ex,pts})=>{
+    rows.forEach(({day,ex,pts,kind})=>{
       if(!pts.length) return;
       const f=pts[0].w, n=pts[pts.length-1].w, diff=Math.round((n-f)*100)/100;
-      const better = ex.assist ? diff<0 : diff>0;
-      const cls = diff===0?'flat':(better?'up':(ex.assist?'flat':'down'));
-      const sign = diff>0?'+':'';
-      h += '<tr><td><span class="dot" style="background:'+colors[day]+'"></span>'+esc(ex.name)+(ex.assist?' <span class="h-sub">(assist)</span>':'')+'</td>'+
-        '<td class="r num">'+kg(f)+'</td><td class="r num">'+kg(n)+'</td><td class="r num '+cls+'">'+(diff===0?'—':(ex.assist?(diff<0?kg(-diff)+' less help':kg(diff)+' more help'):sign+kg(diff)))+'</td><td>'+spark(pts, trendColor(diff, ex.assist), trendColor(pts.length>1?Math.round((n-pts[pts.length-2].w)*100)/100:0, ex.assist))+'</td></tr>';
+      const cls = diff===0?'flat':(diff>0?'up':'down');
+      const u = kind==='s'?' s':kind==='reps'?'':'';
+      const pct = (kind==='kg' && f) ? ' ('+(diff>0?'+':'')+Math.round(diff/f*100)+'%)' : '';
+      h += '<tr><td><span class="dot" style="background:'+colors[day]+'"></span>'+esc(ex.name)+(kind==='s'?' <span class="h-sub">(sec)</span>':kind==='reps'?' <span class="h-sub">(reps)</span>':'')+'</td>'+
+        '<td class="r num">'+kg(f)+u+'</td><td class="r num">'+kg(n)+u+'</td><td class="r num '+cls+'">'+(diff===0?'—':(diff>0?'+':'')+kg(diff)+pct)+'</td><td>'+spark(pts, trendColor(diff,false), trendColor(pts.length>1?Math.round((n-pts[pts.length-2].w)*100)/100:0,false))+'</td></tr>';
     });
     h += '</tbody></table></div>';
   }
@@ -749,12 +766,13 @@ function buildReport(mode){
     return t+wk.map(sessionBlock).join('\n\n');
   }
   const rows=progressRows().filter(r=>r.pts.length);
-  let t='LIFT LOG — progress since first logged session\n';
+  let t='LIFT LOG — progress since first logged session\n(score = average of all sets, weight and reps combined as estimated one-rep max)\n';
   ['push','pull','legs'].forEach(day=>{
     const rs=rows.filter(r=>r.day===day); if(!rs.length) return;
     t+='\n'+day.toUpperCase()+'\n';
-    rs.forEach(({ex,pts})=>{const f=pts[0].w,n=pts[pts.length-1].w,d=Math.round((n-f)*100)/100;
-      t+='- '+ex.name+(ex.assist?' [assist]':'')+': '+kg(f)+' → '+kg(n)+' kg ('+(d>0?'+':'')+kg(d)+', '+pts.length+' sessions)\n';});
+    rs.forEach(({ex,pts,kind})=>{const f=pts[0].w,n=pts[pts.length-1].w,d=Math.round((n-f)*100)/100;
+      const u=kind==='s'?' s':kind==='reps'?' reps':' score';
+      t+='- '+ex.name+': '+kg(f)+' → '+kg(n)+u+' ('+(d>0?'+':'')+kg(d)+(kind==='kg'&&f?', '+(d>0?'+':'')+Math.round(d/f*100)+'%':'')+', '+pts.length+' sessions)\n';});
   });
   const bws=ss.filter(s=>s.bw).reverse(); if(bws.length) t+='\nBody weight: '+bws[0].bw+' kg ('+fmtDate(bws[0].date)+') → '+bws[bws.length-1].bw+' kg ('+fmtDate(bws[bws.length-1].date)+')';
   const ws=ss.filter(s=>s.waist).reverse(); if(ws.length) t+='\nWaist: '+ws[0].waist+' cm → '+ws[ws.length-1].waist+' cm';
