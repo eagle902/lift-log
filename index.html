@@ -201,6 +201,44 @@ body[data-day="report"] .btn.primary{color:var(--bg)}
 .h-sub{font-size:12px;color:var(--ink-3)}
 .h-body{font-size:12.5px;color:var(--ink-2);margin-top:6px;white-space:pre-wrap}
 .empty{font-size:13.5px;color:var(--ink-3);text-align:center;padding:14px}
+/* v2 additions */
+.tabs{grid-template-columns:repeat(6,minmax(0,1fr));gap:4px}
+.tab{font-size:13px;letter-spacing:0;padding:8px 1px 7px;overflow:hidden;min-width:0}
+.tab small{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.tab[data-t="test"][aria-selected="true"]{background:var(--gold);color:#111}
+.tab[data-t="test"][aria-selected="true"] small{color:#111;opacity:.8}
+body[data-day="test"]{--accent:var(--gold);--accent-soft:var(--gold-soft)}
+body[data-day="test"] .btn.primary{color:#111}
+.chips{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
+.chips button{border:1px solid var(--line-2);background:var(--surface-2);border-radius:999px;padding:5px 10px;font-size:12.5px;font-weight:600;min-width:34px}
+.chips button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+body[data-day="test"] .chips button[aria-pressed="true"]{color:#111}
+.chips .lbl{font-size:12px;color:var(--ink-3);margin-right:2px}
+.rir{margin-top:8px}
+.checkin{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.checkin h2{font-family:var(--display);font-weight:600;font-size:14px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin:0}
+.mini{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-2)}
+.mini .field{max-width:110px}
+.editbox{margin-top:8px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.editbox label{font-size:11px;color:var(--ink-3);display:flex;flex-direction:column;gap:2px}
+.editbox .field input{font-size:15px;padding:7px 4px 7px 7px}
+.meter{display:flex;flex-direction:column;gap:8px}
+.mrow{display:grid;grid-template-columns:1fr 46px;gap:8px;align-items:center;font-size:13px}
+.mrow .nm{display:flex;justify-content:space-between;gap:8px;color:var(--ink-2)}
+.mrow .nm small{color:var(--ink-3)}
+.mbar{height:8px;background:var(--line);border-radius:4px;position:relative;overflow:hidden;margin-top:3px}
+.mbar b{position:absolute;top:0;bottom:0;left:0;border-radius:4px}
+.mbar i{position:absolute;top:0;bottom:0;background:rgba(255,255,255,.18)}
+.mval{font-family:var(--display);font-weight:700;font-size:20px;text-align:right;font-variant-numeric:tabular-nums}
+.bigscore{display:flex;align-items:baseline;gap:10px}
+.bigscore .n{font-family:var(--display);font-weight:700;font-size:48px;line-height:1;color:var(--gold)}
+.tcard{border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--surface-2);display:flex;flex-direction:column;gap:8px}
+.tcard h3{margin:0;font-family:var(--display);font-weight:600;font-size:18px}
+.tcard .proto{font-size:12.5px;color:var(--ink-2);white-space:pre-wrap}
+.tcard .res{font-size:12.5px;color:var(--ink-3)}
+.tgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.tgrid label{font-size:11.5px;color:var(--ink-3);display:flex;flex-direction:column;gap:2px}
+.warnnote{color:var(--warn)}
 @media (max-width:360px){.cgrid{grid-template-columns:repeat(2,1fr)}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -218,6 +256,7 @@ body[data-day="report"] .btn.primary{color:var(--bg)}
     <button class="tab" role="tab" data-t="legs" id="tab-legs">Legs<small>back-safe</small></button>
     <button class="tab" role="tab" data-t="cardio" id="tab-cardio">Cardio<small>in between</small></button>
     <button class="tab" role="tab" data-t="report" id="tab-report">Report<small>progress</small></button>
+    <button class="tab" role="tab" data-t="test" id="tab-test">Test<small>age norms</small></button>
   </nav>
 </header>
 
@@ -351,7 +390,11 @@ const LS = {
   del(k){try{localStorage.removeItem(k)}catch(e){}}
 };
 const clone = o => JSON.parse(JSON.stringify(o));
-const todayISO = () => {const d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
+// Local calendar date (Korea is UTC+9, so toISOString() alone gives yesterday before 9 am).
+const localISO = dt => {const d=new Date(dt);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)};
+const todayISO = () => localISO(new Date());
+const daysAgoISO = n => {const d=new Date(); d.setDate(d.getDate()-n); return localISO(d)};
+const daysBetween = (a,b) => Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/86400000);
 const fmtDate = iso => {const [y,m,d]=iso.split('-').map(Number);return new Date(y,m-1,d).toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'})};
 const kg = v => (v==null||v==='')?'':(Math.round(Number(v)*100)/100).toString();
 const fmtTime = iso => new Date(iso).toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
@@ -366,11 +409,16 @@ function nextUpDay(){
 const newId = () => Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 
 let program = LS.get('ppl-program', clone(DEFAULT_PROGRAM));
-let sessions = LS.get('ppl-sessions', []);         // cache of all sessions
-let pending = LS.get('ppl-pending', []);           // ids saved locally, not yet in cloud
+let sessions = LS.get('ppl-sessions', []);         // all sessions, stored on this phone
 let tab = LS.get('ppl-tab', 'push');
 let reportMode = 'last';
-let db = null, dbState = 'connecting';
+let habits = LS.get('ppl-habits', {});             // date -> {p: protein meals, cr: creatine, cof: coffee before noon}
+let tests = LS.get('ppl-tests', []);               // fitness-meter results
+let profile = LS.get('ppl-profile', {age:53});
+let diet = LS.get('ppl-diet', null);               // {phase:'diet'|'break', since:'YYYY-MM-DD'}
+let deload = LS.get('ppl-deload', {});             // {lastAt, activeUntil, snoozeUntil}
+const editOpen = {};
+let testOpen = null;
 const confirmOpen = {};                            // exercise id -> true
 let addOpen = false;
 let restoreDraft = '';
@@ -400,10 +448,10 @@ function planDiff(o){
     if(o.days&&o.days[day]&&o.days[day].label&&o.days[day].label!==DAYS[day].label) lines.push(DAYS[day].label+' tab becomes '+o.days[day].label);
     newL.forEach(n=>{
       const old=oldL.find(x=>x.id===n.id);
-      if(!old){lines.push(L+': add '+n.name+' '+n.sets+'×'+n.reps+(n.coach&&n.coach.w!=null?' at '+kg(n.coach.w)+' kg':''));return}
+      if(!old){lines.push(L+': add '+n.name+' '+n.sets+'×'+n.reps+(n.repsMax?'–'+n.repsMax:'')+(n.coach&&n.coach.w!=null?' at '+kg(n.coach.w)+' kg':''));return}
       const ch=[];
       if(old.name!==n.name) ch.push('renamed '+n.name);
-      if(old.sets!==n.sets||old.reps!==n.reps) ch.push(n.sets+'×'+n.reps);
+      if(old.sets!==n.sets||old.reps!==n.reps||(old.repsMax||0)!==(n.repsMax||0)) ch.push(n.sets+'×'+n.reps+(n.repsMax?'–'+n.repsMax:''));
       if(old.rest!==n.rest) ch.push(n.rest+' s rest');
       if(n.coach&&n.coach.w!=null) ch.push('target '+kg(n.coach.w)+' kg');
       if(ch.length) lines.push(L+': '+n.name+' → '+ch.join(', '));
@@ -420,7 +468,7 @@ function planDiff(o){
 function draftKey(day){return 'ppl-draft-'+day}
 function getDraft(day){
   let d = LS.get(draftKey(day), null);
-  if(!d) d = {day, date:todayISO(), entries:{}, back:null, bw:'', waist:'', notes:'', energy:null};
+  if(!d) d = {day, date:todayISO(), entries:{}, back:null, bw:'', waist:'', notes:'', energy:null, sleep:'', fedH:null, snack:null};
   if(!Array.isArray(d.cardio)){
     d.cardio=[{type: day==='cardio' ? 'outdoor' : 'treadmill'}];
     if(d.walk){d.cardio[0].min=d.walk;}
@@ -463,12 +511,27 @@ function suggestion(ex){
     const w = Math.floor(mid/step)*step || ws[0];
     return {w, kind:'hold', text:'Pick one weight: '+kg(w)+' kg on all '+ex.sets+' sets'};
   }
-  const allHit = sets.length >= ex.sets && sets.every(s => Number(s.r) >= ex.reps);
+  const enough = sets.length >= ex.sets;
+  const minR = Math.min(...sets.map(s=>Number(s.r)||0));
+  const rir = last.entry.rir;
+  const up = () => { const w = ex.assist ? Math.max(0, top-step) : top+step;
+    return {w, kind:'up', text: ex.assist ? 'Top of range hit — drop assist to '+kg(w)+' kg' : 'Top of range hit — try '+kg(w)+' kg'+(ex.repsMax?' for '+ex.reps+' reps':'')}; };
+  if(ex.repsMax && ex.repsMax>ex.reps && !isTimed(ex)){
+    // Double progression: add reps inside the range first, then weight once every set reaches the top.
+    if(enough && minR >= ex.repsMax) return up();
+    if(enough && minR >= ex.reps){
+      const aim = Math.min(ex.repsMax, minR+1);
+      return {w:top, kind:'hold', text:'Same '+kg(top)+' kg, aim for '+aim+'+ reps on every set (range '+ex.reps+'–'+ex.repsMax+')'};
+    }
+    return {w:top, kind:'hold', text:'Stay at '+kg(top)+' kg until every set reaches '+ex.reps+' reps'+(rir===0?' · last set was to failure, stop 1–2 short':'')};
+  }
+  const allHit = enough && minR >= ex.reps;
   if(allHit){
+    if(rir===0) return {w:top, kind:'hold', text:'All reps hit, but only at failure — repeat '+kg(top)+' kg once more'};
     const w = ex.assist ? Math.max(0, top-step) : top+step;
     return {w, kind:'up', text: ex.assist ? 'All reps hit — drop assist to '+kg(w)+' kg' : 'All reps hit — try '+kg(w)+' kg'};
   }
-  return {w:top, kind:'hold', text:'Stay at '+kg(top)+' kg until all '+ex.sets+'×'+ex.reps+' are clean'};
+  return {w:top, kind:'hold', text:'Stay at '+kg(top)+' kg until all '+ex.sets+'×'+ex.reps+' are clean'+(rir===0?' · last set was to failure, stop 1–2 short':'')};
 }
 function setsText(sets){
   return sets.filter(s=>s.w!=null||s.r!=null).map(s=>(s.w!=null&&s.w!==''?kg(s.w):'bw')+'×'+(s.r!=null&&s.r!==''?s.r:'?')).join(', ');
@@ -483,8 +546,7 @@ function render(){
   document.body.dataset.day = tab;
   document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected', String(t.dataset.t===tab)));
   (function(){
-    const now=new Date(), wk=new Date(now); wk.setDate(now.getDate()-6);
-    const w=wk.toISOString().slice(0,10), m=todayISO().slice(0,7);
+    const w=daysAgoISO(6), m=todayISO().slice(0,7);
     const wN=sessions.filter(x=>x.date>=w).length, mN=sessions.filter(x=>(x.date||'').slice(0,7)===m).length;
     const sp=document.querySelector('#sync span');
     if(sp) sp.innerHTML='<span class="streak">'+wN+'</span> this week · <span class="streak">'+mN+'</span> this month';
@@ -494,8 +556,8 @@ function render(){
   { const sm=document.querySelector('#tab-cardio small'); if(sm){ sm.textContent=DAYS.cardio.sub||''; sm.className=''; } }
   ['push','pull','legs'].forEach(k=>{ const sm=document.querySelector('#tab-'+k+' small'); if(!sm) return;
     if(k===nu){ sm.textContent='next up'; sm.className='next'; } else { sm.textContent=SUB[k]; sm.className=''; } });
-  document.getElementById('bar').hidden = (tab==='report');
-  if(tab==='report') renderReport(); else renderDay(tab);
+  document.getElementById('bar').hidden = (tab==='report' || tab==='test');
+  if(tab==='report') renderReport(); else if(tab==='test') renderTest(); else renderDay(tab);
 }
 
 function renderDay(day){
@@ -505,7 +567,7 @@ function renderDay(day){
   list.forEach(ex=>{totalSets+=ex.sets; const e=d.entries[ex.id]; if(e) doneSets+=e.sets.filter(s=>s.done).length});
   let h = '';
   if(day==='cardio'){
-    const wk=new Date(); wk.setDate(wk.getDate()-6); const w=wk.toISOString().slice(0,10);
+    const w=daysAgoISO(6);
     const recent=sessions.filter(x=>x.date>=w);
     const mins=recent.reduce((a,x)=>a+cardioMinutes(x),0), goal=DAYS.cardio.goalMin||120;
     const days=recent.filter(x=>x.day==='cardio').length;
@@ -522,6 +584,8 @@ function renderDay(day){
   if(planFinished()) h += CHECKIN;
   const note = (program.notes && program.notes[day]) || (day==='cardio' ? CARDIO_MENU : '');
   if(note) h += '<div class="coachnote"><b>'+(day==='cardio'?'Ideas for today':'Plan for this session'+(program.label?' · '+esc(program.label):''))+'</b>'+esc(note)+'</div>';
+  if(day!=='cardio') h += deloadBanner();
+  h += checkinHTML(d) + habitsHTML();
   if(day!=='cardio') h += '<div class="progress'+(totalSets&&doneSets>=totalSets?' full':'')+'" aria-label="Sets done"><b style="width:'+(totalSets?Math.round(doneSets/totalSets*100):0)+'%"></b></div>';
 
   list.forEach(ex=>{
@@ -531,13 +595,18 @@ function renderDay(day){
     const complete = e.sets.filter(s=>s.done).length >= ex.sets;
     h += '<section class="ex'+(complete?' complete':'')+'" data-ex="'+esc(ex.id)+'">';
     h += '<div class="ex-head"><div><div class="ex-name">'+(ex.tag?'<span class="pair">'+esc(ex.tag)+'</span>':'')+esc(ex.name)+'</div>'+
-         '<div class="ex-target num">'+ex.sets+' × '+ex.reps+' · '+ex.rest+' s rest'+(ex.assist?' · weight = assist (lower is stronger)':'')+'</div></div>';
+         '<div class="ex-target num">'+ex.sets+' × '+ex.reps+(ex.repsMax?'–'+ex.repsMax:'')+(isTimed(ex)?' s':'')+' · '+ex.rest+' s rest'+(ex.assist?' · weight = assist (lower is stronger)':'')+'</div></div>';
     if(confirmOpen[ex.id]){
       h += '<div class="confirm">Remove? <button type="button" class="danger" data-act="rm-yes">Yes</button><button type="button" data-act="rm-no">No</button></div>';
     } else {
-      h += '<button type="button" class="more" data-act="rm">Remove</button>';
+      h += '<div style="display:flex;gap:10px"><button type="button" class="more" data-act="edit">'+(editOpen[ex.id]?'Done':'Edit')+'</button><button type="button" class="more" data-act="rm">Remove</button></div>';
     }
     h += '</div>';
+    if(editOpen[ex.id]){
+      const fld=(k,lab,v,ph)=>'<label>'+lab+'<div class="field"><input type="number" inputmode="numeric" data-edit="'+k+'" value="'+esc(v??'')+'" placeholder="'+esc(ph||'')+'"></div></label>';
+      h += '<div class="editbox">'+fld('sets','Sets',ex.sets)+fld('reps',isTimed(ex)?'Seconds':'Reps (min)',ex.reps)+(isTimed(ex)?'':fld('repsMax','Reps (max)',ex.repsMax,'none'))+fld('rest','Rest s',ex.rest)+'</div>'+
+        (isTimed(ex)?'':'<div class="pain-note">Set a max to use a rep range: add reps first, and the weight goes up once every set reaches the max.</div>');
+    }
     h += '<div class="ex-last">'+(last?'<span class="num">Last '+esc(fmtDate(last.session.date))+': '+esc(setsText(last.entry.sets))+'</span>':'<span>No history yet</span>')+
          '<span class="chip'+(sug.kind==='hold'?' hold':sug.kind==='coach'?' coach':'')+'">'+esc(sug.text)+'</span></div>';
     if(formFor(ex)){
@@ -562,6 +631,11 @@ function renderDay(day){
     }
     h += '</div><div class="set-tools"><button type="button" class="link" data-act="fill">Fill all sets with suggestion</button>'+
          (e.sets.some(s=>s.w!=null||s.r!=null||s.done)?'<button type="button" class="link" style="color:var(--ink-3)" data-act="clear">Clear</button>':'')+'</div>';
+    if(!isTimed(ex) && !isCarry(ex) && e.sets.some(s=>s&&s.done)){
+      h += '<div class="chips rir"><span class="lbl">Last set: reps left in the tank</span>';
+      [0,1,2,3].forEach(v=>{ h += '<button type="button" data-act="rir" data-v="'+v+'" aria-pressed="'+(e.rir===v)+'">'+rirLabel(v)+'</button>'; });
+      h += '</div>';
+    }
     h += '</section>';
   });
 
@@ -569,7 +643,8 @@ function renderDay(day){
   else if(addOpen){
     h += '<form class="addform" id="addform"><label class="full">Exercise name<input id="add-name" required placeholder="e.g. Cable lateral raise"></label>'+
       '<label>Sets<input id="add-sets" type="number" inputmode="numeric" value="3" min="1" max="8"></label>'+
-      '<label>Reps<input id="add-reps" type="number" inputmode="numeric" value="12" min="1" max="30"></label>'+
+      '<label>Reps (min)<input id="add-reps" type="number" inputmode="numeric" value="12" min="1" max="30"></label>'+
+      '<label>Reps (max, optional)<input id="add-repsmax" type="number" inputmode="numeric" placeholder="e.g. 15" min="1" max="40"></label>'+
       '<label>Rest (s)<input id="add-rest" type="number" inputmode="numeric" value="45" min="15" max="300"></label>'+
       '<label>Start weight (kg)<input id="add-hint" type="number" inputmode="decimal" value="10" min="0" step="0.25"></label>'+
       '<div class="row"><button type="button" class="btn" data-act="add-cancel">Cancel</button><button type="submit" class="btn primary">Add to '+DAYS[day].label+'</button></div></form>';
@@ -614,17 +689,29 @@ function renderDay(day){
   main.innerHTML = h;
 }
 
-function bodyWeight(){ const b=sortedSessions().find(x=>x.bw); return b?Number(b.bw):83.7; }
-// One number per session: the best set, scored so weight AND reps both count.
+const DEFAULT_BW = 83.7;
+function bodyWeight(){ const b=sortedSessions().find(x=>x.bw); return b?Number(b.bw):DEFAULT_BW; }
+// Body weight on a given date: the nearest weigh-in on or before it, else the first one after it.
+function bodyWeightAt(date){
+  const w=sessions.filter(x=>x.bw).sort((a,b)=>a.date.localeCompare(b.date));
+  if(!w.length) return DEFAULT_BW;
+  let pick=w[0]; w.forEach(x=>{ if(x.date<=date) pick=x; });
+  return Number(pick.bw);
+}
+function sessionBW(s){ return s ? Number(s.bw || s.bwRef || bodyWeightAt(s.date)) : bodyWeight(); }
+// One number per session, scored so weight AND reps both count.
 // Weighted: estimated one-rep max (Epley, w x (1 + reps/30)).
-// Assisted: same, using the weight you actually lift (body weight minus help).
-// Timed: seconds held. Bodyweight-only: reps.
-function perfKind(ex){ if(isTimed(ex)) return 's'; if(!ex.assist && !(ex.coach&&ex.coach.w) && !ex.hint) return 'reps'; return 'kg'; }
-function perfOf(sets, ex){
-  const kind=perfKind(ex), bw=bodyWeight(); const vals=[];
+// Assisted: same, using the weight you actually lift (that day's body weight minus help).
+// Carries: kg x steps (load moved). Timed: seconds held. Bodyweight-only: reps.
+function isCarry(ex){ return ex.metric==='carry' || /carry/i.test(ex.name||'') || ex.id==='farmer'; }
+function perfKind(ex){ if(isTimed(ex)) return 's'; if(isCarry(ex)) return 'carry'; if(!ex.assist && !(ex.coach&&ex.coach.w) && !ex.hint) return 'reps'; return 'kg'; }
+const KIND_UNIT = {s:' s', reps:' reps', carry:' kg×steps', kg:' score'};
+function perfOf(sets, ex, sess){
+  const kind=perfKind(ex), bw=sessionBW(sess); const vals=[];
   (sets||[]).forEach(t=>{
     const r=Number(t.r), w=Number(t.w)||0; if(!r) return;
     if(kind==='s'||kind==='reps') vals.push(r);
+    else if(kind==='carry'){ if(w) vals.push(w*r); }
     else { const lifted = ex.assist ? Math.max(0,bw-w) : w; if(lifted) vals.push(lifted*(1+r/30)); }
   });
   if(!vals.length) return null;
@@ -638,7 +725,7 @@ function progressRows(){
       const pts=[];
       sortedSessions().slice().reverse().forEach(s=>{
         const e=(s.exercises||[]).find(x=>x.id===ex.id||x.name===ex.name);
-        if(e){const v=perfOf(e.sets,ex); if(v!=null) pts.push({date:s.date,w:v});}
+        if(e){const v=perfOf(e.sets,ex,s); if(v!=null) pts.push({date:s.date,w:v});}
       });
       rows.push({day,ex,pts,kind:perfKind(ex)});
     });
@@ -661,7 +748,7 @@ function spark(pts, color, dotColor){
 function renderReport(){
   const text = buildReport(reportMode);
   const finished = planFinished();
-  let h = (finished?CHECKIN:'')+'<section class="panel"><h2>Report for Claude</h2>'+
+  let h = (finished?CHECKIN:'')+backupReminder()+deloadBanner()+weekPanel()+'<section class="panel"><h2>Report for Claude</h2>'+
     '<div class="seg" role="group" aria-label="Report range">'+
       '<button type="button" data-act="mode" data-v="last" aria-pressed="'+(reportMode==='last')+'">Last session</button>'+
       '<button type="button" data-act="mode" data-v="week" aria-pressed="'+(reportMode==='week')+'">Last 7 days</button>'+
@@ -692,8 +779,8 @@ function renderReport(){
       const f=pts[0].w, n=pts[pts.length-1].w, diff=Math.round((n-f)*100)/100;
       const cls = diff===0?'flat':(diff>0?'up':'down');
       const u = kind==='s'?' s':kind==='reps'?'':'';
-      const pct = (kind==='kg' && f) ? ' ('+(diff>0?'+':'')+Math.round(diff/f*100)+'%)' : '';
-      h += '<tr><td><span class="dot" style="background:'+colors[day]+'"></span>'+esc(ex.name)+(kind==='s'?' <span class="h-sub">(sec)</span>':kind==='reps'?' <span class="h-sub">(reps)</span>':'')+'</td>'+
+      const pct = ((kind==='kg'||kind==='carry') && f) ? ' ('+(diff>0?'+':'')+Math.round(diff/f*100)+'%)' : '';
+      h += '<tr><td><span class="dot" style="background:'+colors[day]+'"></span>'+esc(ex.name)+(kind==='s'?' <span class="h-sub">(sec)</span>':kind==='reps'?' <span class="h-sub">(reps)</span>':kind==='carry'?' <span class="h-sub">(kg×steps)</span>':'')+'</td>'+
         '<td class="r num">'+kg(f)+u+'</td><td class="r num">'+kg(n)+u+'</td><td class="r num '+cls+'">'+(diff===0?'—':(diff>0?'+':'')+kg(diff)+pct)+'</td><td>'+spark(pts, trendColor(diff,false), trendColor(pts.length>1?Math.round((n-pts[pts.length-2].w)*100)/100:0,false))+'</td></tr>';
     });
     h += '</tbody></table></div>';
@@ -715,9 +802,10 @@ function renderReport(){
   h += '</div></section>';
 
   h += '<section class="panel"><h2>Backup</h2>'+
-    '<div class="hint">Your log lives only on this phone. Copy a backup now and then and keep it somewhere safe (a note, an email to yourself). To move to a new phone, paste it below.</div>'+
-    '<button type="button" class="btn" data-act="backup">Copy backup ('+sessions.length+' sessions)</button>'+
-    '<textarea class="report" id="restoreText" style="min-height:80px" placeholder="Paste a backup here to restore it"></textarea>'+
+    '<div class="hint">Your log lives only on this phone. Save a backup file now and then (Files, Drive or email to yourself). To move to a new phone, open the file or paste the text below.'+(LS.get('ppl-lastBackup',null)?' Last backup: '+esc(fmtDate(LS.get('ppl-lastBackup')))+'.':' No backup yet.')+'</div>'+
+    '<div class="row2"><button type="button" class="btn primary" data-act="backup-file">Save backup file</button><button type="button" class="btn" data-act="backup">Copy as text</button></div>'+
+    '<label class="btn" style="text-align:center">Restore from a backup file<input type="file" id="restoreFile" accept=".json,application/json,text/plain" hidden></label>'+
+    '<textarea class="report" id="restoreText" style="min-height:80px" placeholder="Or paste backup text here to restore it"></textarea>'+
     (confirmOpen.restore?'<div class="confirm">Replace everything on this phone with the pasted backup? <button type="button" class="danger" data-act="restore-yes">Replace</button><button type="button" data-act="restore-no">Cancel</button></div>':'<button type="button" class="btn" data-act="restore">Restore from backup</button>')+
     '</section>';
   h += '<section class="panel"><h2>Programme</h2><div class="hint">Removed or added exercises? You can put the day back to the original plan.</div>'+
@@ -726,12 +814,399 @@ function renderReport(){
   main.innerHTML = h;
 }
 
+/* ---------- check-in, RIR and daily habits ---------- */
+const rirLabel = v => v>=3 ? '3+' : String(v);
+const FED = ['<1','1-2','2-3','3-4','4+'];
+const longGap = v => v==='3-4' || v==='4+';
+function checkinText(s){
+  const p=[];
+  if(s.sleep!=null) p.push('slept '+s.sleep+' h');
+  if(s.fedH) p.push('last meal '+s.fedH+' h before');
+  if(s.snack!=null) p.push('pre-workout snack '+(s.snack?'yes':'no'));
+  return p.join(' · ');
+}
+function checkinHTML(d){
+  if(d.day==='cardio') return '';
+  let h='<section class="checkin"><h2>Before you start</h2>'+
+    '<div class="mini">Sleep last night<div class="field"><input id="x-sleep-'+d.day+'" data-x="sleep" type="number" inputmode="decimal" step="0.5" min="0" max="14" placeholder="7" value="'+esc(d.sleep??'')+'"><span>h</span></div></div>'+
+    '<div class="chips"><span class="lbl">Last real meal</span>';
+  FED.forEach(v=>{ h+='<button type="button" data-act="fed" data-v="'+v+'" aria-pressed="'+(d.fedH===v)+'">'+v+' h</button>'; });
+  h+='</div><div class="chips"><span class="lbl">Snack in the last hour</span>'+
+    '<button type="button" data-act="snack" data-v="1" aria-pressed="'+(d.snack===true)+'">Yes</button>'+
+    '<button type="button" data-act="snack" data-v="0" aria-pressed="'+(d.snack===false)+'">No</button></div>';
+  if(longGap(d.fedH) && d.snack!==true) h+='<div class="pain-note warnnote">3+ hours since food: a banana with dates, or sourdough with honey, 30–60 min before helps the last sets.</div>';
+  return h+'</section>';
+}
+function todayHabits(){ return habits[todayISO()] || {}; }
+function setHabit(k, v){
+  const t=todayISO(), o=Object.assign({}, habits[t]||{}); o[k]=v; habits[t]=o;
+  const cut=daysAgoISO(180); Object.keys(habits).forEach(x=>{ if(x<cut) delete habits[x]; });
+  LS.set('ppl-habits', habits);
+}
+function habitsHTML(){
+  const t=todayHabits();
+  let h='<section class="checkin"><h2>Today</h2><div class="chips"><span class="lbl">Protein meals (~35 g)</span>';
+  for(let v=0; v<=4; v++) h+='<button type="button" data-act="hp" data-v="'+v+'" aria-pressed="'+(t.p===v)+'">'+v+'</button>';
+  h+='</div><div class="chips">'+
+    '<button type="button" data-act="hcr" aria-pressed="'+(!!t.cr)+'">Creatine 3–5 g</button>'+
+    '<button type="button" data-act="hcof" aria-pressed="'+(!!t.cof)+'">Coffee only before noon</button></div></section>';
+  return h;
+}
+function habitsText(){
+  const days=[]; for(let i=0;i<7;i++) days.push(daysAgoISO(i));
+  const rec=days.map(x=>habits[x]).filter(x=>x && Object.keys(x).length);
+  if(!rec.length) return '';
+  const ps=rec.filter(x=>x.p!=null).map(x=>x.p);
+  const parts=[];
+  if(ps.length) parts.push('protein meals avg '+(Math.round(ps.reduce((a,b)=>a+b,0)/ps.length*10)/10)+'/4');
+  parts.push('creatine '+rec.filter(x=>x.cr).length+'/'+rec.length+' days');
+  parts.push('coffee before noon '+rec.filter(x=>x.cof).length+'/'+rec.length+' days');
+  return 'Habits ('+rec.length+' of 7 days logged): '+parts.join(' · ');
+}
+function energyLinkText(){
+  const g=sessions.filter(s=>s.day!=='cardio' && s.energy!=null);
+  const withCi=g.filter(s=>s.sleep!=null || s.fedH || s.snack!=null);
+  if(!withCi.length) return '';
+  const avg=a=>Math.round(a.reduce((x,y)=>x+y,0)/a.length*10)/10;
+  const cmp=(label, inA, inB, la, lb)=>{
+    const A=withCi.filter(inA).map(s=>s.energy), B=withCi.filter(inB).map(s=>s.energy);
+    if(A.length<2 || B.length<2) return null;
+    return label+': '+la+' '+avg(A)+' (n='+A.length+') vs '+lb+' '+avg(B)+' (n='+B.length+')';
+  };
+  const out=[
+    cmp('Last meal', s=>longGap(s.fedH), s=>s.fedH && !longGap(s.fedH), '3h+', 'under 3h'),
+    cmp('Sleep', s=>s.sleep!=null && s.sleep<6, s=>s.sleep!=null && s.sleep>=6, 'under 6h', '6h+'),
+    cmp('Snack', s=>s.snack===true, s=>s.snack===false, 'yes', 'no')
+  ].filter(Boolean);
+  if(!out.length) return 'Energy vs check-in: '+withCi.length+' session'+(withCi.length===1?'':'s')+' so far — needs at least 2 in each group to compare.';
+  return 'Energy on last sets (1–5) vs check-in — '+out.join(' · ');
+}
+
+/* ---------- deload ---------- */
+function gymSessions(){ return sortedSessions().filter(s=>s.day!=='cardio' && (s.exercises||[]).length); }
+function deloadActive(){ return !!(deload.activeUntil && deload.activeUntil>=todayISO()); }
+function deloadStatus(){
+  const g=gymSessions(); if(!g.length) return {due:false};
+  // A logged deload, or any 7+ day gap between gym sessions (time off), resets the clock.
+  let since = g[g.length-1].date;
+  for(let i=0;i<g.length-1;i++){ if(daysBetween(g[i+1].date, g[i].date)>=7){ since=g[i].date; break; } }
+  if(deload.lastAt && deload.lastAt>since) since=deload.lastAt;
+  const weeks = Math.floor(daysBetween(since, todayISO())/7);
+  const last3=g.slice(0,3);
+  const en=last3.filter(s=>s.energy!=null).map(s=>s.energy);
+  const rirs=[]; last3.forEach(s=>(s.exercises||[]).forEach(e=>{ if(e.rir!=null) rirs.push(e.rir); }));
+  const avgE = en.length>=3 ? en.reduce((a,b)=>a+b,0)/en.length : null;
+  const avgR = rirs.length>=4 ? rirs.reduce((a,b)=>a+b,0)/rirs.length : null;
+  const reasons=[];
+  if(weeks>=6) reasons.push(weeks+' weeks since the last easy week');
+  if(weeks>=4 && avgE!=null && avgE<=2) reasons.push('energy averaged '+(Math.round(avgE*10)/10)+'/5 over the last 3 sessions');
+  if(weeks>=4 && avgR!=null && avgR<=0.5) reasons.push('last sets are mostly going to failure');
+  const snoozed = deload.snoozeUntil && deload.snoozeUntil>todayISO();
+  return {due: reasons.length>0 && !snoozed && !deloadActive(), reasons, weeks, since};
+}
+const DELOAD_HOW='Same weights, about half the sets (2 per exercise), stop with 3+ reps in the tank. Keep cardio easy. Next week, go back to the normal plan.';
+function deloadBanner(){
+  if(deloadActive()) return '<div class="coachnote" style="border-left-color:var(--gold)"><b style="color:var(--gold)">Deload week · until '+esc(fmtDate(deload.activeUntil))+'</b>'+DELOAD_HOW+
+    '<div style="margin-top:8px"><button type="button" class="btn" data-act="dl-end">End deload week</button></div></div>';
+  const st=deloadStatus(); if(!st.due) return '';
+  return '<div class="coachnote" style="border-left-color:var(--gold)"><b style="color:var(--gold)">Time for an easy week?</b>'+esc(st.reasons.join('; '))+'. '+DELOAD_HOW+
+    '<div class="row2" style="margin-top:8px"><button type="button" class="btn primary" data-act="dl-start">Start deload week</button><button type="button" class="btn" data-act="dl-snooze">Not now</button></div></div>';
+}
+function deloadText(){
+  if(deloadActive()) return 'Deload week in progress (until '+fmtDate(deload.activeUntil)+').';
+  const st=deloadStatus(); if(!st.weeks && st.weeks!==0) return '';
+  return 'Weeks since last deload: '+st.weeks+(st.due?' — deload suggested ('+st.reasons.join('; ')+')':'');
+}
+
+/* ---------- fat-loss pace and diet breaks ---------- */
+function paceData(){
+  const w=sessions.filter(s=>s.bw).map(s=>({d:s.date,v:Number(s.bw)})).sort((a,b)=>a.d.localeCompare(b.d));
+  if(w.length<3) return {need:true, n:w.length};
+  let pts=w.filter(x=>x.d>=daysAgoISO(28));
+  if(pts.length<3 || daysBetween(pts[0].d, pts[pts.length-1].d)<10) pts=w.filter(x=>x.d>=daysAgoISO(56));
+  if(pts.length<3 || daysBetween(pts[0].d, pts[pts.length-1].d)<10) return {need:true, n:pts.length};
+  const xs=pts.map(p=>daysBetween(pts[0].d,p.d)), ys=pts.map(p=>p.v);
+  const mx=xs.reduce((a,b)=>a+b,0)/xs.length, my=ys.reduce((a,b)=>a+b,0)/ys.length;
+  let num=0,den=0; xs.forEach((x,i)=>{num+=(x-mx)*(ys[i]-my); den+=(x-mx)*(x-mx);});
+  const perWeek = den ? num/den*7 : 0;
+  const span=daysBetween(pts[0].d, pts[pts.length-1].d);
+  return {perWeek, n:pts.length, span, latest:ys[ys.length-1]};
+}
+function dietState(){
+  if(diet) return diet;
+  const first=sessions.slice().sort((a,b)=>a.date.localeCompare(b.date))[0];
+  return {phase:'diet', since: first?first.date:todayISO(), assumed:true};
+}
+function paceText(){
+  const p=paceData();
+  if(p.need) return 'Weight trend: needs 3+ weigh-ins over 10+ days (log body weight 2–3 times a week, same time of day).';
+  const r=Math.round(p.perWeek*100)/100, st=dietState();
+  let verdict;
+  if(st.phase==='break') verdict = Math.abs(r)<=0.25 ? 'steady, as intended on a diet break' : (r<0?'still dropping — eat a little more on the break':'rising — normal water/glycogen at first');
+  else if(r>-0.2) verdict='slower than the 0.4–0.6 kg/week target';
+  else if(r>-0.4) verdict='a bit slower than the 0.4–0.6 kg/week target';
+  else if(r<=-0.7) verdict='faster than target — muscle and energy are at risk, eat a little more';
+  else verdict='on target (0.4–0.6 kg/week)';
+  return 'Weight trend: '+(r>0?'+':'')+r+' kg/week over '+p.span+' days ('+p.n+' weigh-ins) — '+verdict+'.';
+}
+function dietText(){
+  const st=dietState(), days=daysBetween(st.since, todayISO()), wk=Math.floor(days/7)+1;
+  if(st.phase==='break'){
+    return 'Diet break day '+(days+1)+' (since '+fmtDate(st.since)+'): eat at maintenance, keep training.'+(days>=14?' Two weeks done — time to go back to the diet.':(days>=7?' 1 week done — you can go back to the diet any time in the next week.':''));
+  }
+  return 'Diet week '+wk+' (since '+fmtDate(st.since)+(st.assumed?', your first logged session':'')+').'+(wk>=10?' A 1–2 week break at maintenance is overdue (every 6–10 weeks).':wk>=6?' A 1–2 week break at maintenance is due soon (every 6–10 weeks).':'');
+}
+function weekPanel(){
+  const w=daysAgoISO(6), recent=sessions.filter(x=>x.date>=w);
+  const mins=recent.reduce((a,x)=>a+cardioMinutes(x),0), goal=DAYS.cardio.goalMin||120;
+  const gym=recent.filter(x=>x.day!=='cardio').length;
+  const st=dietState();
+  const lines=[paceText(), dietText(), habitsText(), energyLinkText(), deloadText()].filter(Boolean);
+  return '<section class="panel" style="--accent:var(--cardio)"><h2>This week</h2>'+
+    '<div class="cweek" style="padding:0;border:0"><div class="row"><span>Cardio, last 7 days</span><span>goal '+goal+' min</span></div>'+
+    '<div class="row"><span class="big num">'+mins+' min</span><span>'+gym+' gym session'+(gym===1?'':'s')+'</span></div>'+
+    '<div class="progress'+(mins>=goal?' full':'')+'"><b style="width:'+Math.min(100,Math.round(mins/goal*100))+'%"></b></div></div>'+
+    lines.map(l=>'<div class="hint" style="color:var(--ink-2)">'+esc(l)+'</div>').join('')+
+    '<div class="row2">'+(st.phase==='break'
+      ? '<button type="button" class="btn" data-act="diet-resume">Back to the diet today</button>'
+      : '<button type="button" class="btn" data-act="diet-break">Start a diet break today</button><button type="button" class="btn" data-act="diet-start">Diet (re)started today</button>')+
+    '</div></section>';
+}
+
+/* ---------- actions shared by several tabs ---------- */
+function commonAction(act, b){
+  if(act==='hp'){ const v=+b.dataset.v, t=todayHabits(); setHabit('p', t.p===v?null:v); render(); return true; }
+  if(act==='hcr'){ setHabit('cr', !todayHabits().cr); render(); return true; }
+  if(act==='hcof'){ setHabit('cof', !todayHabits().cof); render(); return true; }
+  if(act==='dl-start'){ const e=new Date(); e.setDate(e.getDate()+6); deload={lastAt:todayISO(), activeUntil:localISO(e)}; LS.set('ppl-deload',deload); render(); toast('Deload week started'); return true; }
+  if(act==='dl-end'){ deload.activeUntil=daysAgoISO(1); LS.set('ppl-deload',deload); render(); return true; }
+  if(act==='dl-snooze'){ const e=new Date(); e.setDate(e.getDate()+7); deload.snoozeUntil=localISO(e); LS.set('ppl-deload',deload); render(); toast('Reminder hidden for a week'); return true; }
+  if(act==='diet-break'){ diet={phase:'break', since:todayISO()}; LS.set('ppl-diet',diet); render(); toast('Diet break started: eat at maintenance for 1–2 weeks'); return true; }
+  if(act==='diet-resume'||act==='diet-start'){ diet={phase:'diet', since:todayISO()}; LS.set('ppl-diet',diet); render(); toast('Diet phase started today'); return true; }
+  return false;
+}
+
+/* ---------- backup ---------- */
+function backupJSON(){ return JSON.stringify({app:'ppl-lift-log',v:2,exportedAt:new Date().toISOString(),program,sessions,habits,tests,profile,diet,deload}); }
+function saveBackupFile(){
+  const name='liftlog-backup-'+todayISO()+'.json', txt=backupJSON();
+  const ok=()=>{ LS.set('ppl-lastBackup',todayISO()); render(); toast('Backup saved'); };
+  try{
+    const file=new File([txt], name, {type:'application/json'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      navigator.share({files:[file], title:'Lift Log backup'}).then(ok, err=>{ if(err && err.name!=='AbortError') download(); });
+      return;
+    }
+  }catch(e){}
+  download();
+  function download(){
+    try{ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'})); a.download=name;
+      document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},1000); ok(); }
+    catch(e){ copyText(txt,null,'Backup copied as text — paste it somewhere safe'); LS.set('ppl-lastBackup',todayISO()); }
+  }
+}
+function restoreBackup(txt){
+  try{
+    const o=JSON.parse(txt); if(!o||!Array.isArray(o.sessions)) return false;
+    sessions=o.sessions; if(o.program&&o.program.push&&o.program.pull&&o.program.legs){ program=o.program; applyDays(); }
+    if(o.habits) habits=o.habits; if(Array.isArray(o.tests)) tests=o.tests; if(o.profile) profile=o.profile;
+    if(o.diet!==undefined) diet=o.diet; if(o.deload) deload=o.deload;
+    LS.set('ppl-sessions',sessions); LS.set('ppl-program',program); LS.set('ppl-habits',habits); LS.set('ppl-tests',tests);
+    LS.set('ppl-profile',profile); LS.set('ppl-diet',diet); LS.set('ppl-deload',deload);
+    render(); return true;
+  }catch(e){ return false; }
+}
+function backupReminder(){
+  if(sessions.length<3) return '';
+  const last=LS.get('ppl-lastBackup',null);
+  if(last && daysBetween(last,todayISO())<30) return '';
+  return '<div class="coachnote" style="border-left-color:var(--warn)"><b style="color:var(--warn)">Back up your log</b>'+(last?'Last backup was '+esc(fmtDate(last))+'.':'No backup yet.')+' Everything lives only on this phone.'+
+    '<div style="margin-top:8px"><button type="button" class="btn primary" data-act="backup-file">Save backup file</button></div></div>';
+}
+
+/* ---------- fitness meter (age norms, men 50-59) ---------- */
+// Each test gives a score of 0-100, roughly the percentile among men 50-59.
+// Sources: Cooper Institute VO2max table (men 50-59: 40th 35.6, 60th 39.2, 80th 43.4, 95th 48.9 mL/kg/min);
+// Rockport walk formula (Kline 1987); grip centiles (Dodds 2014, UK, age 50); push-ups (ACSM 50-59 categories);
+// single-leg stance (Springer 2007); sitting-rising test (Araujo 2012); Biering-Sorensen (mean 89 s, SD 55, men 50-54).
+const normCdf = z => { const t=1/(1+0.2316419*Math.abs(z)), d=0.3989423*Math.exp(-z*z/2);
+  const p=d*t*(0.3193815+t*(-0.3565638+t*(1.781478+t*(-1.821256+t*1.330274)))); return z>0?1-p:p; };
+const clampP = p => Math.max(1, Math.min(99, Math.round(p)));
+function interpP(x, pts){ // pts: [[value, percentile], ...] ascending
+  if(x<=pts[0][0]) return pts[0][1]*Math.max(0,x)/pts[0][0];
+  for(let i=1;i<pts.length;i++) if(x<=pts[i][0]){ const [x0,p0]=pts[i-1],[x1,p1]=pts[i]; return p0+(p1-p0)*(x-x0)/(x1-x0); }
+  const [xa,pa]=pts[pts.length-2],[xb,pb]=pts[pts.length-1]; return Math.min(99, pb+(pb-pa)*(x-xb)/(xb-xa));
+}
+const VO2_PTS=[[29.3,5],[32.0,20],[35.6,40],[39.2,60],[43.4,80],[48.9,95]];
+const GRIP_PTS=[[35,10],[41,25],[48,50],[54,75],[60,90]];
+const PU_PTS=[[4,5],[8.5,10],[12.5,25],[17.5,50],[24.5,70],[30.5,90],[40,98]];
+function parseClock(v){ const t=String(v||'').trim(); if(!t) return null; if(t.includes(':')){const [m,s]=t.split(':').map(Number); return isNaN(m)||isNaN(s)?null:m+s/60;} const n=Number(t.replace(',','.')); return isNaN(n)?null:n; }
+const TESTS = {
+  walk:{name:'1-mile walk (aerobic)', weight:35, every:70,
+    fields:[['time','Time (mm:ss)','text','15:00'],['hr','Heart rate at finish','number','120'],['wt','Body weight kg','number','']],
+    proto:'Flat 1 mile (1.6 km): a track, or a treadmill at 0% incline. Warm up 5 min. Walk as fast as you can without jogging. Read your heart rate the moment you finish (watch or chest strap). Formula: Rockport walk test (Kline 1987); error about ±4 mL/kg/min.',
+    score(v){ const min=parseClock(v.time), hr=Number(v.hr), kgw=Number(v.wt)||bodyWeight(), age=profile.age||53;
+      if(!min||!hr) return null;
+      const lmin=6.9652+0.0091*(kgw*2.20462)-0.0257*age+0.5955-0.2240*min-0.0115*hr, vo2=lmin*1000/kgw;
+      const p=interpP(vo2,VO2_PTS), err=Math.abs(interpP(vo2+4,VO2_PTS)-interpP(vo2-4,VO2_PTS))/2;
+      return {s:clampP(p), err:Math.round(err), txt:'VO2max ≈ '+vo2.toFixed(1)+' mL/kg/min ('+v.time+', HR '+hr+')', approx:vo2<35.6, note:vo2<35.6?'below the 40th percentile the table is extrapolated':''}; }},
+  grip:{name:'Grip strength', weight:20, every:28,
+    fields:[['kg','Best squeeze, stronger hand (kg)','number','45']],
+    proto:'Hand dynamometer. Stand, arm by your side, elbow slightly bent. Squeeze as hard as you can for 3 s. 2–3 tries per hand, 1 min apart. Enter the best on your stronger hand.',
+    score(v){ const g=Number(v.kg); if(!g) return null; const adj=(profile.age||53)>=55?1:0;
+      const p=interpP(g+adj,GRIP_PTS), rel=Math.round(g/bodyWeight()*1000)/10;
+      return {s:clampP(p), err:Math.round(Math.abs(interpP(g+2,GRIP_PTS)-interpP(g-2,GRIP_PTS))/2), txt:g+' kg (UK norms, age 50: median 48 kg) · '+rel+'% of body weight (Korea 국민체력100 grade-3 floor: 50.1%)'}; }},
+  pushups:{name:'Push-ups', weight:15, every:70,
+    fields:[['reps','Push-ups in a row','number','15']],
+    proto:'Full push-ups from the toes, chest down to about a fist above the floor, arms straight at the top, steady pace, no rest. Count until form breaks. Stop if your back goes above 3/10.',
+    score(v){ const r=Number(v.reps); if(v.reps===''||v.reps==null||isNaN(r)) return null;
+      const cat = r>=31?'excellent':r>=25?'good':r>=18?'above average':r>=13?'average':r>=9?'below average':'poor';
+      return {s:clampP(interpP(r,PU_PTS)), err:10, txt:r+' reps — ACSM category for 50–59: '+cat, approx:true, note:'percentiles estimated from category bands'}; }},
+  sls:{name:'Single-leg balance', weight:10, every:28,
+    fields:[['open','Eyes open, s (max 45)','number','30'],['closed','Eyes closed, s (max 45)','number','8']],
+    proto:'Barefoot, arms crossed on your chest, lift one foot without touching the standing leg. Time until the foot touches down, the arms move or you hop. Max 45 s. Best of 3, better leg. Do eyes-closed next to a wall.',
+    score(v){ const o=v.open===''||v.open==null?null:Math.min(45,Number(v.open)), c=v.closed===''||v.closed==null?null:Math.min(45,Number(v.closed));
+      if(o==null && c==null) return null;
+      const po = o!=null ? normCdf((o-41.5)/10.5)*100 : null, pc = c!=null ? normCdf((c-8.6)/8.8)*100 : null;
+      let p; if(po!=null && pc!=null) p = o>=45 ? pc : (po+pc)/2; else p = po!=null ? po : pc;
+      const t=[]; if(o!=null) t.push('eyes open '+o+' s (50–59 average 41.5)'); if(c!=null) t.push('eyes closed '+c+' s (average 8.6)');
+      return {s:clampP(p), err:12, txt:t.join(' · ')+(o!=null&&o<10?' — under 10 s: discuss with your doctor':''), approx:true, note:(o!=null&&o>=45&&c==null?'45 s is the ceiling: add eyes closed for a real score':'normal approximation')}; }},
+  srt:{name:'Sitting-rising test', weight:10, every:70,
+    fields:[['score','Score 0–10 (steps of 0.5)','number','8']],
+    proto:'From standing, sit down on the floor cross-legged and stand back up. Start at 10; take off 1 for each hand, knee, forearm or side of the leg you use for support (going down and coming up), and 0.5 for a clear wobble. Best of 2 tries. Skip if your back is above 3/10.',
+    score(v){ const s=Number(v.score); if(v.score===''||v.score==null||isNaN(s)) return null; const x=Math.max(0,Math.min(10,s));
+      const band = x>=8?'lowest-risk band (8–10)':x>=6?'6–7.5':x>=3.5?'3.5–5.5':'highest-risk band (0–3)';
+      return {s:clampP(x*10), err:10, txt:x+'/10 — '+band+' (Araujo 2012, ages 51–80)', approx:true, note:'score is points ×10, not a percentile'}; }},
+  sorensen:{name:'Back-extension hold', weight:10, every:70,
+    fields:[['s','Seconds held level (max 240)','number','90']],
+    proto:'Face down on a back-extension bench, hips at the edge, arms crossed. Hold your body straight and level for as long as you can; the time ends when you drop below level. Max 240 s. Skip it on a bad back day, and stop if pain goes above 3/10.',
+    score(v){ const s=Number(v.s); if(!s) return null; const x=Math.min(240,s);
+      return {s:clampP(normCdf((x-89)/55)*100), err:15, txt:x+' s (men 50–54 average about 89 s)', approx:true, note:'one small table, normal approximation'}; }}
+};
+const TEST_KEYS=Object.keys(TESTS);
+function latestTest(k){ return tests.filter(t=>t.key===k).sort((a,b)=>(b.date+b.id).localeCompare(a.date+a.id))[0]||null; }
+function scoreOf(t){ try{ return t ? TESTS[t.key].score(t.v) : null; }catch(e){ return null; } }
+function meterData(){
+  const cut=daysAgoISO(84), rows=[];
+  TEST_KEYS.forEach(k=>{ const t=latestTest(k), sc=scoreOf(t); rows.push({k, t, sc, current: !!(t && sc && t.date>=cut)}); });
+  const cur=rows.filter(r=>r.current);
+  const ready = cur.some(r=>r.k==='walk') && cur.length>=4;
+  let overall=null, err=null;
+  if(cur.length){
+    const W=cur.reduce((a,r)=>a+TESTS[r.k].weight,0);
+    overall=Math.round(cur.reduce((a,r)=>a+r.sc.s*TESTS[r.k].weight,0)/W);
+    err=Math.round(cur.reduce((a,r)=>a+r.sc.err*TESTS[r.k].weight,0)/W);
+  }
+  const weakest = cur.length ? cur.reduce((a,r)=>r.sc.s<a.sc.s?r:a) : null;
+  return {rows, cur, ready, overall, err, weakest};
+}
+const band = s => s<20?'well below average':s<40?'below average':s<60?'around average':s<80?'above average':'well above average';
+const barColor = s => s<25?'var(--bad)':s<45?'var(--warn)':'var(--ok)';
+function fitnessText(){
+  if(!tests.length) return '';
+  const m=meterData();
+  let t='FITNESS METER (men 50–59 norms; scores ≈ percentiles, approximate)\n';
+  if(m.ready) t+='Overall: '+m.overall+' ±'+m.err+' ('+band(m.overall)+') · weakest: '+TESTS[m.weakest.k].name+' '+m.weakest.sc.s+'\n';
+  else t+='Overall: not shown yet — needs the walk test plus 3 other tests from the last 12 weeks ('+m.cur.length+' current'+(m.cur.some(r=>r.k==='walk')?'':', no walk test')+')\n';
+  m.rows.forEach(r=>{
+    if(!r.t || !r.sc){ t+='- '+TESTS[r.k].name+': not tested\n'; return; }
+    t+='- '+TESTS[r.k].name+' ('+fmtDate(r.t.date)+(r.current?'':', older than 12 weeks')+'): '+r.sc.txt+' → '+r.sc.s+(r.sc.approx?' (approx.)':'')+'\n';
+  });
+  return t.trimEnd();
+}
+function personalTrendsHTML(){
+  const rows=progressRows().filter(r=>r.pts.length);
+  const bw=bodyWeight();
+  const pick=rows.filter(r=>r.kind==='s'||r.kind==='carry'||r.kind==='kg');
+  if(!pick.length) return '';
+  let h='<section class="panel"><h2>Your own trends (no age norms)</h2><div class="hint">Dead hang, side plank, carries and machine lifts have no trustworthy norms for men 50–59, and machines differ between brands. They count only against yourself. Machine lifts show the strength score ÷ today\'s body weight.</div><table class="prog"><thead><tr><th>Exercise</th><th class="r">First</th><th class="r">Now</th></tr></thead><tbody>';
+  pick.forEach(r=>{ const f=r.pts[0], n=r.pts[r.pts.length-1];
+    const fmt = (p,isNow) => r.kind==='kg' ? (r.ex.assist? kg(p.w) : (Math.round(p.w/(isNow?bw:bodyWeightAt(p.date))*100)/100)+'× BW') : kg(p.w)+KIND_UNIT[r.kind];
+    h+='<tr><td>'+esc(r.ex.name)+'</td><td class="r num">'+esc(fmt(f,false))+'</td><td class="r num">'+esc(fmt(n,true))+'</td></tr>'; });
+  return h+'</tbody></table></section>';
+}
+function renderTest(){
+  const m=meterData();
+  let h='<section class="panel"><h2>Fitness meter · men 50–59</h2>';
+  if(m.ready){
+    h+='<div class="bigscore"><span class="n num">'+m.overall+'</span><span><b>'+esc(band(m.overall))+'</b><br><span class="hint">±'+m.err+' · roughly your percentile among men 50–59</span></span></div>';
+  } else {
+    h+='<div class="hint" style="color:var(--ink-2)">The overall score appears once you have the <b>walk test plus 3 other tests</b> from the last 12 weeks. Now: '+m.cur.length+' current'+(m.cur.some(r=>r.k==='walk')?'':', walk test missing')+'.</div>';
+  }
+  if(m.weakest) h+='<div class="coachnote" style="border-left-color:'+barColor(m.weakest.sc.s)+'"><b style="color:var(--ink)">Weakest link: '+esc(TESTS[m.weakest.k].name)+' · '+m.weakest.sc.s+'</b>A strong score elsewhere does not cancel this one out. Put a little work here first.</div>';
+  h+='<div class="meter">';
+  m.rows.forEach(r=>{
+    const T=TESTS[r.k];
+    if(!r.sc){ h+='<div class="mrow"><div><div class="nm"><span>'+esc(T.name)+'</span><small>'+T.weight+'%</small></div><div class="mbar"></div></div><div class="mval" style="color:var(--ink-3)">—</div></div>'; return; }
+    const s=r.sc.s, lo=Math.max(0,s-r.sc.err), hi=Math.min(100,s+r.sc.err);
+    h+='<div class="mrow" style="'+(r.current?'':'opacity:.5')+'"><div><div class="nm"><span>'+esc(T.name)+(r.sc.approx?' <small>approx.</small>':'')+'</span><small>'+T.weight+'% · '+esc(fmtDate(r.t.date))+(r.current?'':' · retest')+'</small></div>'+
+      '<div class="mbar"><b style="width:'+s+'%;background:'+barColor(s)+'"></b><i style="left:'+lo+'%;width:'+(hi-lo)+'%"></i></div></div><div class="mval">'+s+'</div></div>';
+  });
+  h+='</div><div class="hint">Scores are approximate percentiles from different populations (US Cooper Institute, UK, Brazil, Korea). The shaded band is the likely range. Treat a change of less than about 10 points as noise.</div>'+
+    '<div class="row2"><button type="button" class="btn primary" data-act="share-fit">Share results</button></div></section>';
+
+  h+='<section class="panel"><h2>Your details</h2><div class="mini">Age<div class="field"><input type="number" inputmode="numeric" data-prof="age" value="'+esc(profile.age||53)+'"><span>years</span></div></div>'+
+    ((profile.age||53)>=60||(profile.age||53)<50?'<div class="pain-note warnnote">The norms here are for men 50–59.</div>':'')+'</section>';
+
+  TEST_KEYS.forEach(k=>{
+    const T=TESTS[k], t=latestTest(k), sc=scoreOf(t);
+    const due = t ? daysBetween(t.date,todayISO())>=T.every : true;
+    h+='<section class="tcard panel"><h3>'+esc(T.name)+'</h3>'+
+      '<div class="res">'+(t&&sc?esc(fmtDate(t.date))+': '+esc(sc.txt)+' → <b style="color:var(--ink)">'+sc.s+'</b>'+(sc.note?' · '+esc(sc.note):''):'Not tested yet')+
+      ' · '+(due?'<span class="warnnote">due now</span>':'next around '+esc(fmtDate(localISO(new Date(new Date(t.date+'T12:00:00').getTime()+T.every*86400000)))))+'</div>';
+    if(testOpen===k){
+      h+='<div class="proto">'+esc(T.proto)+'</div><div class="tgrid">';
+      T.fields.forEach(([f,lab,type,ph])=>{
+        const pv = f==='wt' ? kg(bodyWeight()) : ph;
+        h+='<label>'+esc(lab)+'<div class="field"><input id="t-'+k+'-'+f+'" data-t="'+k+'.'+f+'" type="'+(type==='text'?'text':'number')+'" inputmode="'+(type==='text'?'numeric':'decimal')+'" step="any" placeholder="'+esc(pv)+'"></div></label>';
+      });
+      h+='</div><div class="row2"><button type="button" class="btn primary" data-act="tsave" data-k="'+k+'">Save result</button><button type="button" class="btn" data-act="tclose">Cancel</button></div>';
+    } else {
+      h+='<button type="button" class="link" style="align-self:flex-start" data-act="topen" data-k="'+k+'">Log a result · how to test</button>';
+    }
+    h+='</section>';
+  });
+
+  if(tests.length){
+    h+='<section class="panel"><h2>Test history</h2><div class="hist">';
+    tests.slice().sort((a,b)=>(b.date+b.id).localeCompare(a.date+a.id)).forEach(t=>{
+      const sc=scoreOf(t);
+      h+='<div class="h-item"><div class="h-top"><div><div class="h-title">'+esc(TESTS[t.key]?TESTS[t.key].name:t.key)+' · '+esc(fmtDate(t.date))+'</div><div class="h-sub">'+esc(sc?sc.txt+' → '+sc.s:'')+'</div></div>'+
+        (confirmOpen['t:'+t.id]?'<div class="confirm">Delete? <button type="button" class="danger" data-act="tdel-yes" data-id="'+esc(t.id)+'">Yes</button><button type="button" data-act="tdel-no" data-id="'+esc(t.id)+'">No</button></div>':'<button type="button" class="more" data-act="tdel" data-id="'+esc(t.id)+'">Delete</button>')+
+        '</div></div>';
+    });
+    h+='</div></section>';
+  }
+  h+=personalTrendsHTML();
+  h+='<div class="hint">Retest: walk, push-ups, sitting-rising and back hold every 8–12 weeks; grip and balance monthly. Test when rested, not after a hard session.</div>';
+  main.innerHTML=h;
+}
+function testInput(){ /* values are read when Save is tapped */ }
+function testAction(act, b){
+  const k=b.dataset.k, id=b.dataset.id;
+  if(act==='topen'){ testOpen=k; render(); const el=document.getElementById('t-'+k+'-'+TESTS[k].fields[0][0]); if(el) el.focus(); }
+  else if(act==='tclose'){ testOpen=null; render(); }
+  else if(act==='tsave'){
+    const v={}; TESTS[k].fields.forEach(([f])=>{ const el=document.getElementById('t-'+k+'-'+f); v[f]=el?el.value.trim():''; });
+    if(k==='walk' && !v.wt) v.wt=String(bodyWeight());
+    const sc=TESTS[k].score(v);
+    if(!sc){ toast('Fill in the result first'+(k==='walk'?' (time like 15:30 and heart rate)':'')); return; }
+    tests.push({id:newId(), key:k, date:todayISO(), v}); LS.set('ppl-tests',tests); testOpen=null; render();
+    toast(TESTS[k].name+': '+sc.s+' saved');
+  }
+  else if(act==='tdel'){ confirmOpen['t:'+id]=true; render(); }
+  else if(act==='tdel-no'){ delete confirmOpen['t:'+id]; render(); }
+  else if(act==='tdel-yes'){ delete confirmOpen['t:'+id]; tests=tests.filter(t=>t.id!==id); LS.set('ppl-tests',tests); render(); toast('Test result deleted'); }
+  else if(act==='share-fit'){ const t=fitnessText(); if(!t){ toast('Log a test first'); return; } shareText('LIFT LOG — '+t); }
+}
+
 /* ---------- report text ---------- */
 function sessionBlock(s){
   const out=[];
   const dl=dayLabel(s).toUpperCase();
-  out.push(dl+(/DAY$/.test(dl)?'':' DAY')+' — '+fmtDate(s.date)+(s.plan?' (plan '+s.plan+')':''));
+  out.push(dl+(/DAY$/.test(dl)?'':' DAY')+' — '+fmtDate(s.date)+(s.plan?' (plan '+s.plan+')':'')+(s.deload?' [DELOAD WEEK]':''));
   if(s.startedAt) out.push('Time: '+fmtTime(s.startedAt)+(s.endedAt?'–'+fmtTime(s.endedAt):'')+(s.durationMin!=null?' ('+s.durationMin+' min)':''));
+  const ci=checkinText(s); if(ci) out.push('Check-in: '+ci);
   (s.exercises||[]).forEach(e=>{
     const ex = (program[s.day]||[]).find(x=>x.id===e.id) || {sets:e.target?e.target.sets:0,reps:e.target?e.target.reps:0,assist:e.assist};
     const prev = lastEntryFor({id:e.id,name:e.name}, null);
@@ -742,7 +1217,8 @@ function sessionBlock(s){
       const a=topWeight(e.sets,e.assist), b=topWeight(pe.sets,e.assist);
       if(a!=null&&b!=null){const d=Math.round((a-b)*100)/100; prevTxt = e.assist ? (' | prev assist '+kg(b)+(d?(' → '+kg(a)+' ('+(d<0?kg(-d)+' kg less help':kg(d)+' kg more help')+')'):' (same)')) : (' | prev top '+kg(b)+(d?(' → '+(d>0?'+':'')+kg(d)+' kg'):' (same)'));}
     }
-    out.push('- '+e.name+(e.assist?' [assist kg]':'')+' ('+(e.target?e.target.sets+'x'+e.target.reps:'')+'): '+setsText(e.sets)+prevTxt);
+    const tgt = e.target ? e.target.sets+'x'+e.target.reps+(e.target.repsMax?'-'+e.target.repsMax:'') : '';
+    out.push('- '+e.name+(e.assist?' [assist kg]':'')+' ('+tgt+'): '+setsText(e.sets)+(e.rir!=null?' | last set '+rirLabel(e.rir)+' in reserve':'')+prevTxt);
   });
   cardioLines(s).forEach(l=>out.push('Cardio — '+l));
   const extra=[s.energy?((s.day==='cardio'?'Energy ':'Energy on last sets ')+s.energy+'/5'):'', s.back!=null?('Lower back '+s.back+'/10'):'', s.bw?('Weight '+s.bw+' kg'):'', s.waist?('Waist '+s.waist+' cm'):''].filter(Boolean);
@@ -755,27 +1231,30 @@ function buildReport(mode){
   if(!ss.length) return 'No sessions saved yet. Log a workout on the Push, Pull or Legs tab and tap Save session.';
   if(mode==='last') return 'LIFT LOG — last session\n\n'+sessionBlock(ss[0]);
   if(mode==='week'){
-    const cut=new Date(); cut.setDate(cut.getDate()-6); const c=cut.toISOString().slice(0,10);
+    const c=daysAgoISO(6);
     const wk=ss.filter(s=>s.date>=c).reverse();
     if(!wk.length) return 'No sessions in the last 7 days.';
     const backs=wk.filter(s=>s.back!=null).map(s=>s.back);
     const walks=wk.reduce((a,s)=>a+cardioMinutes(s),0);
     const lbls=[...new Set(wk.map(dayLabel))];
     let t='LIFT LOG — last 7 days: '+wk.length+' sessions ('+lbls.map(l=>wk.filter(s=>dayLabel(s)===l).length+' '+l).join(', ')+')\n';
-    t+='Cardio total: '+walks+' min'+(backs.length?' · Lower back range '+Math.min(...backs)+'–'+Math.max(...backs)+'/10':'')+'\n\n';
-    return t+wk.map(sessionBlock).join('\n\n');
+    t+='Cardio total: '+walks+' of '+(DAYS.cardio.goalMin||120)+' min goal'+(backs.length?' · Lower back range '+Math.min(...backs)+'–'+Math.max(...backs)+'/10':'')+'\n';
+    [habitsText(), paceText(), dietText(), deloadText(), energyLinkText()].filter(Boolean).forEach(x=>t+=x+'\n');
+    return t+'\n'+wk.map(sessionBlock).join('\n\n');
   }
   const rows=progressRows().filter(r=>r.pts.length);
-  let t='LIFT LOG — progress since first logged session\n(score = average of all sets, weight and reps combined as estimated one-rep max)\n';
+  let t='LIFT LOG — progress since first logged session\n(score = average of all sets, weight and reps combined as estimated one-rep max; assisted moves use that day\'s body weight minus assist; carries = kg × steps)\n';
   ['push','pull','legs'].forEach(day=>{
     const rs=rows.filter(r=>r.day===day); if(!rs.length) return;
-    t+='\n'+day.toUpperCase()+'\n';
+    t+='\n'+String(DAYS[day].label||day).toUpperCase()+'\n';
     rs.forEach(({ex,pts,kind})=>{const f=pts[0].w,n=pts[pts.length-1].w,d=Math.round((n-f)*100)/100;
-      const u=kind==='s'?' s':kind==='reps'?' reps':' score';
-      t+='- '+ex.name+': '+kg(f)+' → '+kg(n)+u+' ('+(d>0?'+':'')+kg(d)+(kind==='kg'&&f?', '+(d>0?'+':'')+Math.round(d/f*100)+'%':'')+', '+pts.length+' sessions)\n';});
+      const u=KIND_UNIT[kind];
+      t+='- '+ex.name+': '+kg(f)+' → '+kg(n)+u+' ('+(d>0?'+':'')+kg(d)+((kind==='kg'||kind==='carry')&&f?', '+(d>0?'+':'')+Math.round(d/f*100)+'%':'')+', '+pts.length+' sessions)\n';});
   });
   const bws=ss.filter(s=>s.bw).reverse(); if(bws.length) t+='\nBody weight: '+bws[0].bw+' kg ('+fmtDate(bws[0].date)+') → '+bws[bws.length-1].bw+' kg ('+fmtDate(bws[bws.length-1].date)+')';
   const ws=ss.filter(s=>s.waist).reverse(); if(ws.length) t+='\nWaist: '+ws[0].waist+' cm → '+ws[ws.length-1].waist+' cm';
+  const pc=paceText(); if(pc) t+='\n'+pc;
+  const ft=fitnessText(); if(ft) t+='\n\n'+ft;
   return t;
 }
 
@@ -859,9 +1338,27 @@ document.querySelector('.tabs').addEventListener('click',e=>{
   tab=b.dataset.t; LS.set('ppl-tab',tab); addOpen=false; render(); window.scrollTo(0,0);
 });
 
+main.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.id==='restoreFile' && t.files && t.files[0]){
+    t.files[0].text().then(txt=>{ restoreDraft=txt.trim(); confirmOpen.restore=true; render();
+      const ta=document.getElementById('restoreText'); if(ta) ta.value=restoreDraft.slice(0,300)+(restoreDraft.length>300?'…':''); });
+    return;
+  }
+  if(t.dataset.edit){
+    const sec=t.closest('.ex'), ex=sec&&(program[tab]||[]).find(x=>x.id===sec.dataset.ex); if(!ex) return;
+    const k=t.dataset.edit, v=t.value===''?null:Math.round(Number(t.value));
+    if(k==='repsMax'){ if(v && v>ex.reps) ex.repsMax=v; else delete ex.repsMax; }
+    else if(v && v>0){ ex[k]=Math.min(k==='rest'?600:k==='sets'?10:300, v); if(k==='reps' && ex.repsMax && ex.repsMax<=v) delete ex.repsMax; }
+    saveProgram(); render(); return;
+  }
+  if(t.dataset.t){ testInput(t); return; }
+  if(t.dataset.prof){ const v=Number(t.value); if(v>=20&&v<=100){ profile.age=Math.round(v); LS.set('ppl-profile',profile); render(); } return; }
+});
 main.addEventListener('input',e=>{
-  if(tab==='report') return;
+  if(tab==='report' || tab==='test') return;
   const d=getDraft(tab), t=e.target;
+  if(t.dataset.edit) return;
   if(t.type==='date'){d.date=t.value||todayISO();putDraft(d);return}
   if(t.dataset.x){d[t.dataset.x]=t.value;putDraft(d);return}
   if(t.dataset.cf){const ci=+t.closest('.cardio').dataset.ci; d.cardio[ci][t.dataset.cf]=t.value===''?null:(t.type==='number'?Number(t.value):t.value); putDraft(d); return}
@@ -880,6 +1377,7 @@ main.addEventListener('submit',e=>{
   const name=document.getElementById('add-name').value.trim(); if(!name) return;
   const ex={id:'c-'+newId(),name,sets:+document.getElementById('add-sets').value||3,reps:+document.getElementById('add-reps').value||12,
     rest:+document.getElementById('add-rest').value||45,hint:Number(document.getElementById('add-hint').value)||0,step:2.5};
+  const rm=+document.getElementById('add-repsmax').value; if(rm>ex.reps) ex.repsMax=rm;
   program[tab].push(ex); addOpen=false; saveProgram(); render();
 });
 
@@ -887,6 +1385,8 @@ main.addEventListener('click',e=>{
   const b=e.target.closest('[data-act]'); if(!b) return;
   const act=b.dataset.act, sec=b.closest('.ex'), exId=sec&&sec.dataset.ex;
   const ex=exId&&(program[tab]||[]).find(x=>x.id===exId);
+  if(commonAction(act,b)) return;
+  if(tab==='test'){ testAction(act,b); return; }
   if(tab==='report'){
     const item=b.closest('.h-item'), sid=item&&item.dataset.sid;
     if(act==='mode'){reportMode=b.dataset.v;render();}
@@ -909,14 +1409,12 @@ main.addEventListener('click',e=>{
     else if(act==='sdel'){confirmOpen['s:'+sid]=true;render();}
     else if(act==='sdel-no'){delete confirmOpen['s:'+sid];render();}
     else if(act==='sdel-yes'){delete confirmOpen['s:'+sid];deleteSession(sid);}
-    else if(act==='backup'){copyText(JSON.stringify({app:'ppl-lift-log',v:1,exportedAt:new Date().toISOString(),program,sessions}),null,'Backup copied — paste it somewhere safe');}
+    else if(act==='backup'){copyText(backupJSON(),null,'Backup copied — paste it somewhere safe'); LS.set('ppl-lastBackup',todayISO());}
+    else if(act==='backup-file'){saveBackupFile();}
     else if(act==='restore'){const v=document.getElementById('restoreText').value.trim(); if(!v){toast('Paste a backup into the box first');return} restoreDraft=v; confirmOpen.restore=true;render();document.getElementById('restoreText').value=restoreDraft;}
     else if(act==='restore-no'){delete confirmOpen.restore;render();}
     else if(act==='restore-yes'){delete confirmOpen.restore;
-      try{const o=JSON.parse(restoreDraft); if(!o||!Array.isArray(o.sessions)) throw 0;
-        sessions=o.sessions; if(o.program&&o.program.push&&o.program.pull&&o.program.legs){ program=o.program; applyDays(); }
-        LS.set('ppl-sessions',sessions); LS.set('ppl-program',program); render(); toast('Restored '+sessions.length+' sessions');
-      }catch(err){render(); toast('That text is not a Lift Log backup');}}
+      if(restoreBackup(restoreDraft)) toast('Restored '+sessions.length+' sessions'); else { render(); toast('That text is not a Lift Log backup'); }}
     else if(act==='reset'){confirmOpen.reset=true;render();}
     else if(act==='reset-no'){delete confirmOpen.reset;render();}
     else if(act==='reset-yes'){delete confirmOpen.reset;program=clone(DEFAULT_PROGRAM);applyDays();saveProgram();render();toast('Programme reset to the original plan');}
@@ -977,16 +1475,21 @@ main.addEventListener('click',e=>{
   else if(act==='cadd'){d.cardio.push({type:'treadmill'}); putDraft(d); render();}
   else if(act==='crm'){const ci=+b.closest('.cardio').dataset.ci; d.cardio.splice(ci,1); putDraft(d); render();}
   else if(act==='energy'){const v=+b.dataset.v; d.energy=(d.energy===v)?null:v; putDraft(d); render();}
+  else if(act==='rir'&&ex){const v=+b.dataset.v; d.entries[ex.id]=d.entries[ex.id]||{sets:[]}; d.entries[ex.id].rir=(d.entries[ex.id].rir===v)?null:v; putDraft(d); render();}
+  else if(act==='edit'&&ex){editOpen[ex.id]=!editOpen[ex.id]; render();}
+  else if(act==='fed'){const v=b.dataset.v; d.fedH=(d.fedH===v)?null:v; putDraft(d); render();}
+  else if(act==='snack'){const v=b.dataset.v==='1'; d.snack=(d.snack===v)?null:v; putDraft(d); render();}
   else if(act==='pain'){const v=+b.dataset.v;d.back=(d.back===v)?null:v;putDraft(d);render();}
 });
 
 function mergeInto(a,b){
   (b.exercises||[]).forEach(e=>{
     const f=(a.exercises=a.exercises||[]).find(x=>x.id===e.id||x.name===e.name);
-    if(f) f.sets=(f.sets||[]).concat(e.sets||[]); else a.exercises.push(e);
+    if(f){ f.sets=(f.sets||[]).concat(e.sets||[]); if(e.rir!=null) f.rir=e.rir; } else a.exercises.push(e);
   });
   a.cardio=(a.cardio||[]).concat(b.cardio||[]);
-  ['energy','back','bw','waist'].forEach(k=>{ if(b[k]!=null) a[k]=b[k]; });
+  ['energy','back','bw','waist','sleep','fedH','snack','deload'].forEach(k=>{ if(b[k]!=null) a[k]=b[k]; });
+  if(a.bwRef==null && b.bwRef!=null) a.bwRef=b.bwRef;
   if(b.notes) a.notes=a.notes?(a.notes+' / '+b.notes):b.notes;
   a.startedAt=a.startedAt||b.startedAt;
   a.endedAt=b.endedAt||b.savedAt||a.endedAt;
@@ -1013,13 +1516,21 @@ function draftToSession(d){
   (program[d.day]||[]).forEach(ex=>{
     const e=d.entries[ex.id]; if(!e) return;
     const sets=e.sets.filter(s=>s && (s.done || s.w!=null || s.r!=null)).map(s=>({w:s.w??null,r:s.r??null}));
-    if(sets.length) exercises.push({id:ex.id,name:ex.name,assist:!!ex.assist,target:{sets:ex.sets,reps:ex.reps},sets});
+    if(sets.length){
+      const o={id:ex.id,name:ex.name,assist:!!ex.assist,target:{sets:ex.sets,reps:ex.reps},sets};
+      if(ex.repsMax) o.target.repsMax=ex.repsMax;
+      if(e.rir!=null) o.rir=e.rir;
+      exercises.push(o);
+    }
   });
   return {id:newId(),day:d.day,dayLabel:DAYS[d.day]?DAYS[d.day].label:d.day,date:d.date||todayISO(),savedAt:new Date().toISOString(),exercises,
     cardio:(d.cardio||[]).map(c=>{const o={type:c.type||'treadmill'};(CARDIO[o.type]||CARDIO.treadmill).f.forEach(f=>{if(c[f]!=null&&c[f]!=='') o[f]=c[f]});return o}).filter(c=>Object.keys(c).length>1),
     energy:d.energy??null, plan:program.label||'',
     startedAt:d.startedAt||null, endedAt:d.startedAt?new Date().toISOString():null, durationMin:d.startedAt?minsSince(d.startedAt):null,
-    back:d.back,bw:d.bw===''||d.bw==null?null:Number(d.bw),waist:d.waist===''||d.waist==null?null:Number(d.waist),notes:(d.notes||'').trim()};
+    back:d.back,bw:d.bw===''||d.bw==null?null:Number(d.bw),waist:d.waist===''||d.waist==null?null:Number(d.waist),notes:(d.notes||'').trim(),
+    bwRef: (d.bw===''||d.bw==null) ? bodyWeight() : Number(d.bw),
+    sleep: d.sleep===''||d.sleep==null?null:Number(d.sleep), fedH: d.fedH??null, snack: d.snack??null,
+    deload: deloadActive() || undefined};
 }
 
 let saveArmed=false, saveArmT=null;
@@ -1051,12 +1562,10 @@ document.getElementById('copyToday').addEventListener('click',()=>{
 
 async function deleteSession(id){
   sessions=sessions.filter(s=>s.id!==id); LS.set('ppl-sessions',sessions);
-  pending=pending.filter(x=>x!==id); LS.set('ppl-pending',pending);
   render();
   toast('Session deleted');
 }
-let progWriting=false, progAgain=false;
-async function saveProgram(){
+function saveProgram(){
   LS.set('ppl-program',program);
 }
 
@@ -1064,7 +1573,7 @@ async function saveProgram(){
 applyDays();
 joinSplitSessions();
 (function(){
-  const inProgress = (tab!=='report') && (()=>{ const d=getDraft(tab); return anyDone(d) || Object.keys(d.entries||{}).length>0 || (d.cardio||[]).some(c=>Object.keys(c).length>1); })();
+  const inProgress = (tab!=='report' && tab!=='test') &&(()=>{ const d=getDraft(tab); return anyDone(d) || Object.keys(d.entries||{}).length>0 || (d.cardio||[]).some(c=>Object.keys(c).length>1); })();
   if(!inProgress){ tab=nextUpDay(); LS.set('ppl-tab',tab); }
   else if(anyDone(getDraft(tab))) keepAwake(true);
 })();
