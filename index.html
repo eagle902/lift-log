@@ -298,6 +298,8 @@ const CARDIO_MENU = "Pick one - whatever you will actually enjoy today:\n"+
  "- Stairs 20 min, or Rowing 20 min at a pace you can hold.\n"+
  "Aim: breathing harder but still able to talk (heart rate around 110-125).";
 function isTimed(ex){ return !!ex.timed || /second/i.test(ex.name||''); }
+// Bodyweight-only moves (balance, planks, hangs, bird-dog): no weight box, only reps or seconds.
+function isBodyOnly(ex){ return !ex.assist && !Number(ex.hint) && !(ex.coach&&Number(ex.coach.w)) && !Number(ex.step); }
 const sw={id:null,start:0,acc:0,running:false,beeped:false};
 const formOpen={};
 const FORM_DEFAULT={"sl-stand": "Stand near a rail, light fingertip touch if needed\nKnee soft, hips level, eyes on a fixed point\nOnce 30 s is easy: try with eyes closed", "seated-row": "Chest tall against the pad, shoulders down\nPull handles to your lower ribs, elbows close\nSqueeze shoulder blades together, 1 s pause\nLet arms go fully straight without rounding forward", "leg-curl": "Knees lined up with the machine's pivot\nCurl smoothly, squeeze at the bottom\nLower slowly (2-3 s) - no swinging\nHips stay down on the pad", "lat-pulldown": "Grip a bit wider than shoulders\nLean back slightly, chest up\nPull the bar to your upper chest, elbows down and in\nControl it up until arms are straight", "hack-squat": "Back and hips flat on the pad the whole time\nFeet shoulder width, toes slightly out\nLower until thighs are about parallel, knees follow toes\nDrive up through the whole foot; don't lock knees hard", "db-incline": "Bench at about 30 degrees\nShoulder blades pulled back and down\nLower the bar to upper chest, elbows about 45 degrees\nPress up and slightly back; no bounce", "rear-delt": "Rope at face height, thumbs pointing back\nPull toward your forehead, elbows high and wide\nSqueeze the back of the shoulders, 1 s pause\nLight weight, no leaning back", "bird-dog": "Hands under shoulders, knees under hips\nBrace your stomach, back flat like a table\nReach one arm forward, opposite leg back - long, not high\nHold 3 s, return slowly; no hip twisting", "pallof": "Stand side-on to the cable, handle at chest height\nFeet hip width, knees soft, stomach braced\nPress straight out, hold 2 s - don't let it twist you\nBring it back slowly; both sides", "hip-thrust": "Chin tucked, ribs down - look at your knees, not the ceiling\nShins vertical at the top; push through your heels\nAt the top tuck your pelvis under and squeeze glutes hard\nStop at a straight line shoulders-to-knees - no arching\n1 s pause at the top; back above 3/10 -> stop", "assisted-pullup": "Hands just wider than shoulders\nStart from straight arms at the bottom - full hang\nPull chest toward the bar until chin is over it\nLower all the way under control; no half reps", "leg-press": "Back and hips flat on the pad - don't let hips curl up\nFeet shoulder width, middle of the platform\nLower until knees reach about 90 degrees\nPress through the whole foot; don't lock knees hard", "shoulder-press": "Back flat against the pad, core braced\nHandles start at about chin height\nPress up without locking elbows hard\nLower with control; no arching the lower back", "assisted-dip": "Lean slightly forward for chest\nShoulders down, away from your ears\nLower until upper arms are about parallel - not deeper\nPress up without locking elbows hard", "farmer": "Stand tall, shoulders back and down\nGrip hard, arms straight at your sides\nShort steady steps, look ahead\nDon't lean or let the weights swing", "side-plank": "Elbow under shoulder, body in one straight line\nHips up - don't let them sag\nStomach tight, breathe normally\nKnees down if you need an easier version", "dead-hang": "Overhand grip, shoulder width\nShoulders slightly pulled down - not shrugged to ears\nBody still, legs together, breathe\nStep down before the grip fails", "sg-goblet": "Hold the dumbbell close against your chest\nSit back onto the bench, chest up\nTouch the bench lightly - don't collapse\nStand up through the whole foot", "sg-pulldown": "Lean back slightly, chest up\nPull to upper chest, elbows down\nControl the way up", "sg-chest-press": "Handles at mid-chest height\nShoulder blades back against the pad\nPress out, don't lock elbows hard; return slowly", "sg-row": "Sit tall, slight knee bend\nPull to lower ribs, squeeze shoulder blades\nDon't rock back and forth", "sg-leg-curl": "Knees in line with the pivot\nCurl smoothly, lower slowly\nHips stay on the pad", "sg-reverse-fly": "Chest against the pad, arms slightly bent\nOpen arms wide, squeeze the back of the shoulders\nReturn slowly; light weight", "back-ext": "Hips on the pad, feet locked in\nCross arms on your chest\nLower slowly, rise to a straight line - never arch past it\nSkip if your back goes above 2/10", "chest-press": "Handles at mid-chest height\nShoulder blades back against the pad\nPress out, don't lock elbows hard; return slowly", "ab-crunch": "Curl your ribs toward your hips\nExhale as you crunch, slow on the way back\nDon't pull with your arms", "tricep-pushdown": "Elbows pinned to your sides\nPush down until arms are straight, squeeze\nControl it back up to about 90 degrees", "cable-curl": "Elbows still at your sides\nCurl up, squeeze at the top\nLower slowly, arms fully straight at the bottom", "sl-leg-press": "45° sled only, start light\nBack flat on the pad, one foot mid-platform\nControl down to about 90 degrees, press through the heel"};
@@ -495,9 +497,16 @@ function topWeight(sets, assist){
 function suggestion(ex){
   if(ex.coach && ex.coach.w!=null && ex.coach.setAt){
     const done = sessions.some(s => (s.savedAt||'') > ex.coach.setAt && (s.exercises||[]).some(e=>e.id===ex.id||e.name===ex.name));
-    if(!done) return {w:ex.coach.w, kind:'coach', text:'Plan: '+((isTimed(ex)&&!ex.coach.w)?ex.reps+' s':kg(ex.coach.w)+' kg'+(ex.assist?' assist':''))+(ex.coach.note?' · '+ex.coach.note:'')};
+    if(!done) return {w:ex.coach.w, kind:'coach', text:'Plan: '+((isBodyOnly(ex)||isTimed(ex))&&!ex.coach.w ? ex.reps+(isTimed(ex)?' s':' reps') : kg(ex.coach.w)+' kg'+(ex.assist?' assist':''))+(ex.coach.note?' · '+ex.coach.note:'')};
   }
   const last = lastEntryFor(ex);
+  if(isBodyOnly(ex)){
+    const u=isTimed(ex)?' s':' reps';
+    const best = last ? Math.max(0,...last.entry.sets.map(t=>Number(t.r)||0)) : 0;
+    if(!best) return {w:0, kind:'start', text:'Aim for '+ex.reps+u};
+    if(best>=ex.reps) return {w:0, kind:'up', text:'Last best '+best+u+' — aim for '+(best+(isTimed(ex)?5:1))+u};
+    return {w:0, kind:'hold', text:'Last best '+best+u+' — aim for '+ex.reps+u};
+  }
   if(!last) return {w:ex.hint, kind:'start', text:'Start around '+kg(ex.hint)+' kg'};
   const sets = last.entry.sets.filter(s=>s.w!=null && s.w!=='');
   const top = topWeight(sets, ex.assist);
@@ -533,8 +542,11 @@ function suggestion(ex){
   }
   return {w:top, kind:'hold', text:'Stay at '+kg(top)+' kg until all '+ex.sets+'×'+ex.reps+' are clean'+(rir===0?' · last set was to failure, stop 1–2 short':'')};
 }
-function setsText(sets){
-  return sets.filter(s=>s.w!=null||s.r!=null).map(s=>(s.w!=null&&s.w!==''?kg(s.w):'bw')+'×'+(s.r!=null&&s.r!==''?s.r:'?')).join(', ');
+function setsText(sets, ex){
+  const f=sets.filter(s=>s.w!=null||s.r!=null);
+  if(ex && (isTimed(ex)||isBodyOnly(ex)) && f.every(s=>!Number(s.w)))
+    return f.map(s=>(s.r!=null&&s.r!==''?s.r:'?')+(isTimed(ex)?' s':'')).join(', ');
+  return f.map(s=>(s.w!=null&&s.w!==''?kg(s.w):'bw')+'×'+(s.r!=null&&s.r!==''?s.r:'?')).join(', ');
 }
 
 /* ---------- rendering ---------- */
@@ -607,7 +619,7 @@ function renderDay(day){
       h += '<div class="editbox">'+fld('sets','Sets',ex.sets)+fld('reps',isTimed(ex)?'Seconds':'Reps (min)',ex.reps)+(isTimed(ex)?'':fld('repsMax','Reps (max)',ex.repsMax,'none'))+fld('rest','Rest s',ex.rest)+'</div>'+
         (isTimed(ex)?'':'<div class="pain-note">Set a max to use a rep range: add reps first, and the weight goes up once every set reaches the max.</div>');
     }
-    h += '<div class="ex-last">'+(last?'<span class="num">Last '+esc(fmtDate(last.session.date))+': '+esc(setsText(last.entry.sets))+'</span>':'<span>No history yet</span>')+
+    h += '<div class="ex-last">'+(last?'<span class="num">Last '+esc(fmtDate(last.session.date))+': '+esc(setsText(last.entry.sets, ex))+'</span>':'<span>No history yet</span>')+
          '<span class="chip'+(sug.kind==='hold'?' hold':sug.kind==='coach'?' coach':'')+'">'+esc(sug.text)+'</span></div>';
     if(formFor(ex)){
       const open=!!formOpen[ex.id];
@@ -618,7 +630,9 @@ function renderDay(day){
     for(let i=0;i<ex.sets;i++){
       const s = e.sets[i] || {};
       h += '<div class="set'+(s.done?' is-done':'')+'" data-i="'+i+'"><span class="n">'+(i+1)+'</span>'+
-        '<div class="field"><input id="w-'+ex.id+'-'+i+'" inputmode="decimal" type="number" step="0.25" min="0" data-f="w" placeholder="'+esc(kg(sug.w))+'" value="'+esc(s.w??'')+'" aria-label="Set '+(i+1)+' weight"><span>kg</span></div>'+
+        (isBodyOnly(ex) && !Number(s.w)
+          ? '<div class="field" style="opacity:.55;justify-content:center"><span style="position:static">body weight</span></div>'
+          : '<div class="field"><input id="w-'+ex.id+'-'+i+'" inputmode="decimal" type="number" step="0.25" min="0" data-f="w" placeholder="'+esc(kg(sug.w))+'" value="'+esc(s.w??'')+'" aria-label="Set '+(i+1)+' weight"><span>kg</span></div>')+
         '<div class="field"><input id="r-'+ex.id+'-'+i+'" inputmode="numeric" type="number" step="1" min="0" data-f="r" placeholder="'+ex.reps+'" value="'+esc(s.r??'')+'" aria-label="Set '+(i+1)+' reps"><span>'+(isTimed(ex)?'sec':'reps')+'</span></div>'+
         '<button type="button" class="done" data-act="done" aria-pressed="'+(!!s.done)+'" aria-label="Mark set '+(i+1)+' done">'+CHECK+'</button></div>';
     }
@@ -1215,10 +1229,15 @@ function sessionBlock(s){
     if(before){
       const pe=before.exercises.find(y=>y.id===e.id||y.name===e.name);
       const a=topWeight(e.sets,e.assist), b=topWeight(pe.sets,e.assist);
-      if(a!=null&&b!=null){const d=Math.round((a-b)*100)/100; prevTxt = e.assist ? (' | prev assist '+kg(b)+(d?(' → '+kg(a)+' ('+(d<0?kg(-d)+' kg less help':kg(d)+' kg more help')+')'):' (same)')) : (' | prev top '+kg(b)+(d?(' → '+(d>0?'+':'')+kg(d)+' kg'):' (same)'));}
+      const exT = Object.assign({name:e.name}, ex);
+      if((isTimed(exT)||isBodyOnly(exT)) && !a && !b){
+        const best=xs=>{const r=xs.map(t=>Number(t.r)).filter(Boolean); return r.length?Math.max(...r):null;};
+        const u=isTimed(exT)?' s':' reps', A=best(e.sets), B=best(pe.sets);
+        if(A!=null&&B!=null) prevTxt=' | prev best '+B+u+(A!==B?' → '+A+u:' (same)');
+      } else if(a!=null&&b!=null){const d=Math.round((a-b)*100)/100; prevTxt = e.assist ? (' | prev assist '+kg(b)+(d?(' → '+kg(a)+' ('+(d<0?kg(-d)+' kg less help':kg(d)+' kg more help')+')'):' (same)')) : (' | prev top '+kg(b)+(d?(' → '+(d>0?'+':'')+kg(d)+' kg'):' (same)'));}
     }
     const tgt = e.target ? e.target.sets+'x'+e.target.reps+(e.target.repsMax?'-'+e.target.repsMax:'') : '';
-    out.push('- '+e.name+(e.assist?' [assist kg]':'')+' ('+tgt+'): '+setsText(e.sets)+(e.rir!=null?' | last set '+rirLabel(e.rir)+' in reserve':'')+prevTxt);
+    out.push('- '+e.name+(e.assist?' [assist kg]':'')+' ('+tgt+'): '+setsText(e.sets, Object.assign({name:e.name}, ex))+(e.rir!=null?' | last set '+rirLabel(e.rir)+' in reserve':'')+prevTxt);
   });
   cardioLines(s).forEach(l=>out.push('Cardio — '+l));
   const extra=[s.energy?((s.day==='cardio'?'Energy ':'Energy on last sets ')+s.energy+'/5'):'', s.back!=null?('Lower back '+s.back+'/10'):'', s.bw?('Weight '+s.bw+' kg'):'', s.waist?('Waist '+s.waist+' cm'):''].filter(Boolean);
