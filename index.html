@@ -165,6 +165,11 @@ body[data-day="report"] .btn.primary{color:var(--bg)}
 
 .bar{position:fixed;left:0;right:0;bottom:0;z-index:6;background:var(--surface);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px))}
 .bar-in{max-width:640px;margin:0 auto;display:flex;gap:8px;align-items:center}
+.burn{display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:54px;padding:4px 6px;border-radius:10px;background:var(--surface-2);border:1px solid var(--line-2)}
+.burn b{font-family:var(--display);font-weight:700;font-size:20px;line-height:1;color:var(--warn);font-variant-numeric:tabular-nums}
+.burn b.pop{animation:burnpop .6s ease}
+.burn small{font-size:10px;color:var(--ink-3);letter-spacing:.04em}
+@keyframes burnpop{0%{transform:scale(1)}40%{transform:scale(1.25)}100%{transform:scale(1)}}
 .rest{flex:0 0 auto;min-width:78px;border:1px solid var(--line-2);background:var(--surface-2);border-radius:10px;padding:6px 8px;text-align:center;line-height:1.05}
 #save.armed{background:var(--gold);border-color:var(--gold);color:#111;font-size:13.5px}
 .snd{flex:0 0 44px;height:52px;border:1px solid var(--line-2);background:var(--surface-2);border-radius:10px;display:grid;place-items:center;color:var(--ink-3)}
@@ -266,6 +271,7 @@ body[data-day="test"] .chips button[aria-pressed="true"]{color:#111}
   <div class="bar-in">
     <button class="snd" id="snd" type="button" aria-pressed="true" aria-label="Rest timer sound"><svg class="on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg><svg class="off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.7 21a2 2 0 0 1-3.4 0"/><path d="M18.6 13A17.9 17.9 0 0 1 18 8"/><path d="M6.3 6.3A6 6 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M18 8a6 6 0 0 0-9.3-5"/><path d="M2 2l20 20"/></svg></button>
     <button class="rest" id="rest" type="button" aria-label="Rest timer, tap to restart"><b id="restT">0:60</b><small id="restL">rest</small></button>
+    <div class="burn" id="burn" hidden title="Estimated calories burned so far"><b id="burnN">0</b><small>kcal</small></div>
     <button class="btn" id="copyToday" type="button">Share</button>
     <button class="btn primary" id="save" type="button" aria-label="Save session">Save</button>
   </div>
@@ -293,7 +299,7 @@ function planFinished(){
 const CHECKIN = '<div class="coachnote" style="border-left-color:var(--gold)"><b style="color:var(--gold)">Plan finished</b>Every session in this plan is done. Share your last 7 days so you get the next plan.<div style="margin-top:8px"><button type="button" class="btn primary" data-act="share-week">Share last 7 days</button></div></div>';
 const CARDIO_MENU = "Pick one - whatever you will actually enjoy today:\n"+
  "- Outdoor walk 30-40 min, brisk, with a podcast or a call.\n"+
- "- Treadmill 30 min, 5.5 km/h, 6-8% incline (or hill intervals: 2 min steep / 2 min easy).\n"+
+ "- Treadmill 30-40 min, brisk, 4-5% incline (steeper only in short 5-10 min blocks - easier on your back).\n"+
  "- Bike 30 min, steady, or Elliptical 25-30 min.\n"+
  "- Stairs 20 min, or Rowing 20 min at a pace you can hold.\n"+
  "Aim: breathing harder but still able to talk (heart rate around 110-125).";
@@ -359,7 +365,7 @@ function fmtMin(v){ const t=String(v).trim(); return t.includes(':') ? t+' min' 
 function cardioText(c){
   const def = CARDIO[c.type] || CARDIO.treadmill, parts=[];
   const v = k => c[k]!=null && c[k]!=='';
-  if(v('min')) parts.push(fmtMin(c.min));
+  if(v('min')) parts.push(fmtMin(c.min)); else if(cardioEntryMin(c)) parts.push('≈'+Math.round(cardioEntryMin(c))+' min (from distance ÷ speed)');
   if(v('km')) parts.push(c.km+' km');
   if(v('m')) parts.push(c.m+' m');
   if(v('speed')) parts.push(c.speed+' km/h');
@@ -376,9 +382,73 @@ function cardioText(c){
   if(v('kcal')) parts.push(c.kcal+' kcal');
   return def.label+': '+(parts.join(' · ')||'no details');
 }
+// Minutes for one cardio entry; if the time box was left empty, work it out from distance and speed.
+function cardioEntryMin(c){
+  const m=parseMin(c.min); if(m) return m;
+  const km=Number(c.km), sp=Number(c.speed);
+  return (km>0 && sp>0) ? km/sp*60 : 0;
+}
 function cardioMinutes(s){
-  if(Array.isArray(s.cardio)) return Math.round(s.cardio.reduce((a,c)=>a+parseMin(c.min),0));
+  if(Array.isArray(s.cardio)) return Math.round(s.cardio.reduce((a,c)=>a+cardioEntryMin(c),0));
   return Number(s.walk)||0;
+}
+/* ---------- estimated calories ----------
+   Walking/running: ACSM metabolic equations (speed and grade), 5 kcal per litre of oxygen.
+   Other machines and lifting: MET values from the Compendium of Physical Activities
+   (lifting with rests 3.5, bodyweight/mobility 2.8, elliptical 5.0, rowing 6.0, bike 5.5, stairs 8.8).
+   Gross calories; "above resting" removes 1 MET (what you would burn sitting). Treat as ±20%. */
+const MET = {lift:3.5, light:2.8, elliptical:5.0, rower:6.0, bike:5.5, stairs:8.8, treadmill:4.3, outdoor:4.0};
+function cardioKcal(c, bw){
+  const min=cardioEntryMin(c), type=c.type||'treadmill';
+  if(!min) return {kcal: Number(c.kcal)||0, min:0, machine: Number(c.kcal)||0};
+  let kcal;
+  if(type==='treadmill' || type==='outdoor'){
+    const km=Number(c.km)||0;
+    const kmh = Number(c.speed) || (km ? km/(min/60) : 0);
+    let grade = c.incline!=null && c.incline!=='' ? Number(c.incline)/100 : (km && Number(c.elev) ? Number(c.elev)/(km*1000) : 0);
+    grade=Math.max(0, Math.min(0.2, grade||0));
+    if(kmh>0){
+      const S=kmh*1000/60; // m/min
+      const vo2 = kmh>=8 ? 3.5+0.2*S+0.9*S*grade : 3.5+0.1*S+1.8*S*grade;
+      kcal = vo2*bw/1000*5*min;
+    } else kcal = MET[type]*bw*min/60;
+  } else if(type==='bike' && Number(c.watts)>0){
+    kcal = Number(c.watts)*min*60/1000/0.22/4.184 + bw*min/60;
+  } else kcal = (MET[type]||5)*bw*min/60;
+  return {kcal:Math.round(kcal), min, machine:Number(c.kcal)||0};
+}
+function sessionKcal(s){
+  if(!s) return null;
+  const bw=sessionBW(s), parts=[]; let total=0, mins=0;
+  const exs=s.exercises||[];
+  if(exs.length){
+    // Time from first ticked set to save; early in a session (or with no clock) use sets × (rest + ~35 s), whichever is larger.
+    const bySets=exs.reduce((a,e)=>{ const pe=(program[s.day]||[]).find(x=>x.id===e.id); return a+(e.sets||[]).length*(((pe&&pe.rest)||60)+35)/60; },0);
+    const m = s.day!=='cardio' ? Math.max(Number(s.durationMin)||0, bySets) : bySets;
+    const met = s.day==='cardio' ? MET.light : MET.lift, k=Math.round(met*bw*m/60);
+    parts.push({label:(s.day==='cardio'?'add-on':'lifting')+' '+Math.round(m)+' min', kcal:k}); total+=k; mins+=m;
+  }
+  (Array.isArray(s.cardio)?s.cardio:[]).forEach(c=>{
+    const r=cardioKcal(c,bw); if(!r.kcal) return;
+    parts.push({label:(CARDIO[c.type]||CARDIO.treadmill).label.toLowerCase()+(r.min?' '+Math.round(r.min)+' min':''), kcal:r.kcal, machine:r.machine});
+    total+=r.kcal; mins+=r.min;
+  });
+  if(!total) return null;
+  const above=Math.max(0, Math.round(total - bw*mins/60));
+  return {total:Math.round(total), above, parts};
+}
+function kcalText(s){
+  const k=sessionKcal(s); if(!k) return '';
+  return 'Estimated burn: ~'+k.total+' kcal ('+k.parts.map(p=>p.label+' ~'+p.kcal+(p.machine?' [machine said '+p.machine+']':'')).join(' + ')+'); about '+k.above+' above resting';
+}
+function weekKcal(){
+  const w=daysAgoISO(6), rs=sessions.filter(x=>x.date>=w);
+  let tot=0, above=0; rs.forEach(x=>{ const k=sessionKcal(x); if(k){ tot+=k.total; above+=k.above; } });
+  return {tot, above, perDay:Math.round(above/7)};
+}
+function weekKcalText(){
+  const k=weekKcal(); if(!k.tot) return '';
+  return 'Estimated exercise burn, last 7 days: ~'+k.tot+' kcal (~'+k.above+' above resting, about '+k.perDay+' a day). The 1,900–2,100 kcal/day target already counts this training — no need to eat it back.';
 }
 function cardioLines(s){
   if(Array.isArray(s.cardio) && s.cardio.length) return s.cardio.map(cardioText);
@@ -444,8 +514,9 @@ async function parsePlan(txt){
 }
 function planDiff(o){
   const lines=[];
-  ['push','pull','legs'].forEach(day=>{
-    const oldL=program[day]||[], newL=o.program[day];
+  ['push','pull','legs','cardio'].forEach(day=>{
+    const oldL=program[day]||[], newL=o.program[day]||[];
+    if(day==='cardio' && !oldL.length && !newL.length) return;
     const L=(o.days&&o.days[day]&&o.days[day].label)||DAYS[day].label;
     if(o.days&&o.days[day]&&o.days[day].label&&o.days[day].label!==DAYS[day].label) lines.push(DAYS[day].label+' tab becomes '+o.days[day].label);
     newL.forEach(n=>{
@@ -570,6 +641,7 @@ function render(){
     if(k===nu){ sm.textContent='next up'; sm.className='next'; } else { sm.textContent=SUB[k]; sm.className=''; } });
   document.getElementById('bar').hidden = (tab==='report' || tab==='test');
   if(tab==='report') renderReport(); else if(tab==='test') renderTest(); else renderDay(tab);
+  if(typeof updateBurn==='function') updateBurn();
 }
 
 function renderDay(day){
@@ -600,6 +672,7 @@ function renderDay(day){
   h += checkinHTML(d) + habitsHTML();
   if(day!=='cardio') h += '<div class="progress'+(totalSets&&doneSets>=totalSets?' full':'')+'" aria-label="Sets done"><b style="width:'+(totalSets?Math.round(doneSets/totalSets*100):0)+'%"></b></div>';
 
+  if(day==='cardio' && list.length) h += '<div class="coachnote" style="border-left-color:var(--cardio)"><b style="color:var(--cardio)">Optional add-on · about 12 min</b>'+esc((program.notes&&program.notes.cardioAddon)||'Easy work after your walk. Skip it if energy is 2 or lower, or your back is above 3/10. Log only what you do.')+'</div>';
   list.forEach(ex=>{
     const e = d.entries[ex.id] || {sets:[]};
     const sug = suggestion(ex);
@@ -683,7 +756,9 @@ function renderDay(day){
 
   const painColor = v => v==null?'':(v<=3?'var(--ok)':v<=5?'var(--warn)':'var(--bad)');
   const EN=['Empty','Low','OK','Good','Plenty'];
+  let liveK=null; try{ liveK=sessionKcal(draftToSession(d)); }catch(e){}
   h += '<section class="extras"><h2>How it went</h2>'+
+    (liveK?'<div class="hint" style="color:var(--ink-2)">Estimated burn so far: <b>~'+liveK.total+' kcal</b> ('+esc(liveK.parts.map(p=>p.label+' ~'+p.kcal).join(' + '))+') · about '+liveK.above+' above resting. Rough estimate, ±20%.</div>':'')+
     '<div><div class="pain-note" style="margin-bottom:5px">'+(day==='cardio'?'Energy today':'Energy on the last sets')+'</div><div class="energy">';
   for(let v=1; v<=5; v++) h += '<button type="button" data-act="energy" data-v="'+v+'" aria-pressed="'+(d.energy===v)+'">'+v+' '+EN[v-1]+'</button>';
   h += '</div></div>'+
@@ -733,7 +808,7 @@ function perfOf(sets, ex, sess){
 }
 function progressRows(){
   const rows=[], seen=new Set();
-  ['push','pull','legs'].forEach(day=>{
+  ['push','pull','legs','cardio'].forEach(day=>{
     (program[day]||[]).forEach(ex=>{
       if(seen.has(ex.id)) return; seen.add(ex.id);
       const pts=[];
@@ -975,7 +1050,7 @@ function weekPanel(){
   const mins=recent.reduce((a,x)=>a+cardioMinutes(x),0), goal=DAYS.cardio.goalMin||120;
   const gym=recent.filter(x=>x.day!=='cardio').length;
   const st=dietState();
-  const lines=[paceText(), dietText(), habitsText(), energyLinkText(), deloadText()].filter(Boolean);
+  const lines=[weekKcalText(), paceText(), dietText(), habitsText(), energyLinkText(), deloadText()].filter(Boolean);
   return '<section class="panel" style="--accent:var(--cardio)"><h2>This week</h2>'+
     '<div class="cweek" style="padding:0;border:0"><div class="row"><span>Cardio, last 7 days</span><span>goal '+goal+' min</span></div>'+
     '<div class="row"><span class="big num">'+mins+' min</span><span>'+gym+' gym session'+(gym===1?'':'s')+'</span></div>'+
@@ -1221,6 +1296,7 @@ function sessionBlock(s){
   out.push(dl+(/DAY$/.test(dl)?'':' DAY')+' — '+fmtDate(s.date)+(s.plan?' (plan '+s.plan+')':'')+(s.deload?' [DELOAD WEEK]':''));
   if(s.startedAt) out.push('Time: '+fmtTime(s.startedAt)+(s.endedAt?'–'+fmtTime(s.endedAt):'')+(s.durationMin!=null?' ('+s.durationMin+' min)':''));
   const ci=checkinText(s); if(ci) out.push('Check-in: '+ci);
+  const kt=kcalText(s);
   (s.exercises||[]).forEach(e=>{
     const ex = (program[s.day]||[]).find(x=>x.id===e.id) || {sets:e.target?e.target.sets:0,reps:e.target?e.target.reps:0,assist:e.assist};
     const prev = lastEntryFor({id:e.id,name:e.name}, null);
@@ -1240,6 +1316,7 @@ function sessionBlock(s){
     out.push('- '+e.name+(e.assist?' [assist kg]':'')+' ('+tgt+'): '+setsText(e.sets, Object.assign({name:e.name}, ex))+(e.rir!=null?' | last set '+rirLabel(e.rir)+' in reserve':'')+prevTxt);
   });
   cardioLines(s).forEach(l=>out.push('Cardio — '+l));
+  if(kt) out.push(kt);
   const extra=[s.energy?((s.day==='cardio'?'Energy ':'Energy on last sets ')+s.energy+'/5'):'', s.back!=null?('Lower back '+s.back+'/10'):'', s.bw?('Weight '+s.bw+' kg'):'', s.waist?('Waist '+s.waist+' cm'):''].filter(Boolean);
   if(extra.length) out.push(extra.join(' · '));
   if(s.notes) out.push('Notes: '+s.notes);
@@ -1258,14 +1335,14 @@ function buildReport(mode){
     const lbls=[...new Set(wk.map(dayLabel))];
     let t='LIFT LOG — last 7 days: '+wk.length+' sessions ('+lbls.map(l=>wk.filter(s=>dayLabel(s)===l).length+' '+l).join(', ')+')\n';
     t+='Cardio total: '+walks+' of '+(DAYS.cardio.goalMin||120)+' min goal'+(backs.length?' · Lower back range '+Math.min(...backs)+'–'+Math.max(...backs)+'/10':'')+'\n';
-    [habitsText(), paceText(), dietText(), deloadText(), energyLinkText()].filter(Boolean).forEach(x=>t+=x+'\n');
+    [weekKcalText(), habitsText(), paceText(), dietText(), deloadText(), energyLinkText()].filter(Boolean).forEach(x=>t+=x+'\n');
     return t+'\n'+wk.map(sessionBlock).join('\n\n');
   }
   const rows=progressRows().filter(r=>r.pts.length);
   let t='LIFT LOG — progress since first logged session\n(score = average of all sets, weight and reps combined as estimated one-rep max; assisted moves use that day\'s body weight minus assist; carries = kg × steps)\n';
-  ['push','pull','legs'].forEach(day=>{
+  ['push','pull','legs','cardio'].forEach(day=>{
     const rs=rows.filter(r=>r.day===day); if(!rs.length) return;
-    t+='\n'+String(DAYS[day].label||day).toUpperCase()+'\n';
+    t+='\n'+(day==='cardio'?'CARDIO-DAY ADD-ON':String(DAYS[day].label||day).toUpperCase())+'\n';
     rs.forEach(({ex,pts,kind})=>{const f=pts[0].w,n=pts[pts.length-1].w,d=Math.round((n-f)*100)/100;
       const u=KIND_UNIT[kind];
       t+='- '+ex.name+': '+kg(f)+' → '+kg(n)+u+' ('+(d>0?'+':'')+kg(d)+((kind==='kg'||kind==='carry')&&f?', '+(d>0?'+':'')+Math.round(d/f*100)+'%':'')+', '+pts.length+' sessions)\n';});
@@ -1421,8 +1498,8 @@ main.addEventListener('click',e=>{
     else if(act==='plan-cancel'){planPending=null;planPreview=null;render();}
     else if(act==='plan-apply'){
       const o=planPending, now=new Date().toISOString();
-      const np={push:o.program.push,pull:o.program.pull,legs:o.program.legs,notes:o.notes||{},label:o.label||'',days:o.days||null,appliedAt:new Date().toISOString()};
-      ['push','pull','legs'].forEach(d=>np[d].forEach(x=>{ if(x.coach) x.coach.setAt=now; }));
+      const np={push:o.program.push,pull:o.program.pull,legs:o.program.legs,cardio:Array.isArray(o.program.cardio)?o.program.cardio:[],notes:o.notes||{},label:o.label||'',days:o.days||null,appliedAt:new Date().toISOString()};
+      ['push','pull','legs','cardio'].forEach(d=>np[d].forEach(x=>{ if(x.coach) x.coach.setAt=now; }));
       program=np; applyDays(); saveProgram(); planPending=null; planPreview=null; render(); toast('Plan '+(np.label||'')+' applied');
     }
     else if(act==='sdel'){confirmOpen['s:'+sid]=true;render();}
@@ -1473,7 +1550,9 @@ main.addEventListener('click',e=>{
       if(!d.startedAt) d.startedAt=new Date().toISOString();
       keepAwake(true);
       const tot=(program[tab]||[]).reduce((a,x)=>a+x.sets,0), dn=Object.values(d.entries).reduce((a,e)=>a+(e.sets||[]).filter(x=>x&&x.done).length,0);
-      if(tot && dn>=tot) setTimeout(()=>toast('Every set done. That is how strength is built. Now the cardio.'),400);
+      const kNow=(()=>{ try{ const k=sessionKcal(draftToSession(d)); return k?k.total:0; }catch(e){ return 0; } })();
+      if(tot && dn>=tot) setTimeout(()=>toast('Every set done · ~'+kNow+' kcal burned so far. Now the cardio.'),400);
+      else if(d.entries[ex.id].sets.filter(x=>x&&x.done).length>=ex.sets) setTimeout(()=>toast(ex.name.replace(/\s*\(.*\)\s*$/,'')+' done · ~'+kNow+' kcal so far'),400);
     } else {
       s.done=false;
       if(!anyDone(d)){ delete d.startedAt; keepAwake(false); }
@@ -1604,7 +1683,19 @@ setInterval(()=>{
   const ex=['push','pull','legs'].map(k=>program[k]||[]).flat().find(x=>x.id===sw.id);
   if(ex && secs>=ex.reps){ box.classList.add('hit'); if(!sw.beeped){ sw.beeped=true; beep(988,180); beep(1319,260,0.25); buzz([150,80,150]); } }
 }, 200);
-setInterval(()=>{ const el=document.getElementById('elapsed'); if(el) el.textContent=minsSince(el.dataset.start)+' min'; }, 30000);
+// Live "burned so far" counter in the bottom bar.
+var lastBurn=null;
+main.addEventListener("input",()=>setTimeout(updateBurn,0));
+function liveBurn(){ if(tab==='report'||tab==='test') return null; try{ return sessionKcal(draftToSession(getDraft(tab))); }catch(e){ return null; } }
+function updateBurn(){
+  const box=document.getElementById('burn'), n=document.getElementById('burnN'); if(!box||!n) return;
+  const k=liveBurn();
+  if(!k){ box.hidden=true; lastBurn=null; return; }
+  box.hidden=false; n.textContent='~'+k.total;
+  if(lastBurn!=null && k.total>lastBurn){ n.classList.remove('pop'); void n.offsetWidth; n.classList.add('pop'); }
+  lastBurn=k.total;
+}
+setInterval(()=>{ const el=document.getElementById('elapsed'); if(el) el.textContent=minsSince(el.dataset.start)+' min'; updateBurn(); }, 30000);
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
