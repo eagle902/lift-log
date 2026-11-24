@@ -207,11 +207,36 @@ body[data-day="report"] .btn.primary{color:var(--bg)}
 .h-body{font-size:12.5px;color:var(--ink-2);margin-top:6px;white-space:pre-wrap}
 .empty{font-size:13.5px;color:var(--ink-3);text-align:center;padding:14px}
 /* v2 additions */
-.tabs{grid-template-columns:repeat(6,minmax(0,1fr));gap:4px}
-.tab{font-size:13px;letter-spacing:0;padding:8px 1px 7px;overflow:hidden;min-width:0}
-.tab small{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-.tab[data-t="test"][aria-selected="true"]{background:var(--gold);color:#111}
-.tab[data-t="test"][aria-selected="true"] small{color:#111;opacity:.8}
+.tabs{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.tab{font-size:15px;letter-spacing:.02em;padding:8px 2px 7px;overflow:hidden;min-width:0}
+.tab small{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.tab[aria-selected="true"]{background:var(--accent)}
+body[data-day="test"] .tab[aria-selected="true"]{color:#111}
+body[data-day="test"] .tab[aria-selected="true"] small{color:#111;opacity:.8}
+body[data-day="food"]{--accent:var(--gold);--accent-soft:var(--gold-soft)}
+body[data-day="food"] .tab[aria-selected="true"],body[data-day="food"] .btn.primary{color:#111}
+body[data-day="food"] .tab[aria-selected="true"] small{color:#111;opacity:.8}
+body[data-day="more"]{--accent:var(--ink-2);--accent-soft:var(--surface-2)}
+body[data-day="more"] .tab[aria-selected="true"]{color:var(--bg,#111)}
+.subseg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:5px}
+.subseg button{border:1px solid var(--line-2);background:var(--surface);border-radius:10px;padding:8px 2px;font-family:var(--display);font-weight:600;font-size:15px;letter-spacing:.03em;text-transform:uppercase;color:var(--ink-2);display:flex;flex-direction:column;align-items:center;line-height:1.1}
+.subseg button small{font-family:var(--body);text-transform:none;font-size:9.5px;font-weight:600;color:var(--ink-3);letter-spacing:0}
+.subseg button small.next{color:var(--warn)}
+.subseg button[aria-pressed="true"]{background:var(--accent);border-color:transparent;color:#fff}
+.subseg button[aria-pressed="true"] small{color:rgba(255,255,255,.85)}
+body[data-day="test"] .subseg button[aria-pressed="true"],body[data-day="test"] .subseg button[aria-pressed="true"] small{color:#111}
+.foodbox textarea{min-height:130px;font-size:15px}
+.fchips{display:flex;flex-wrap:wrap;gap:6px}
+.fchips button{border:1px solid var(--line-2);background:var(--surface-2);border-radius:999px;padding:6px 11px;font-size:13px;color:var(--ink)}
+.fchips button:active{background:var(--accent);color:#111}
+.photos{display:flex;flex-wrap:wrap;gap:8px}
+.ph{position:relative;width:86px;height:86px;border-radius:10px;overflow:hidden;border:1px solid var(--line-2);background:var(--surface-2)}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph.sent img{opacity:.45}
+.ph .tagp{position:absolute;left:4px;bottom:4px;font-size:10px;font-weight:700;padding:1px 5px;border-radius:6px;background:rgba(0,0,0,.65);color:#fff}
+.ph .x{position:absolute;right:3px;top:3px;width:24px;height:24px;border-radius:50%;border:0;background:rgba(0,0,0,.65);color:#fff;font-size:14px;line-height:24px;padding:0}
+.camrow{display:flex;gap:8px}
+.camrow label{flex:1;text-align:center}
 body[data-day="test"]{--accent:var(--gold);--accent-soft:var(--gold-soft)}
 body[data-day="test"] .btn.primary{color:#111}
 .chips{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
@@ -256,12 +281,10 @@ body[data-day="test"] .chips button[aria-pressed="true"]{color:#111}
     <div class="sync cloud" id="sync"><i></i><span>Saved on this phone</span></div>
   </div>
   <nav class="tabs" role="tablist">
-    <button class="tab" role="tab" data-t="push" id="tab-push">Push<small>chest · shoulders</small></button>
-    <button class="tab" role="tab" data-t="pull" id="tab-pull">Pull<small>back · biceps</small></button>
-    <button class="tab" role="tab" data-t="legs" id="tab-legs">Legs<small>back-safe</small></button>
-    <button class="tab" role="tab" data-t="cardio" id="tab-cardio">Cardio<small>in between</small></button>
-    <button class="tab" role="tab" data-t="report" id="tab-report">Report<small>progress</small></button>
-    <button class="tab" role="tab" data-t="test" id="tab-test">Test<small>age norms</small></button>
+    <button class="tab" role="tab" data-t="train" id="tab-train">Train<small>today</small></button>
+    <button class="tab" role="tab" data-t="food" id="tab-food">Food<small>today</small></button>
+    <button class="tab" role="tab" data-t="progress" id="tab-progress">Progress<small>report · test</small></button>
+    <button class="tab" role="tab" data-t="more" id="tab-more">More<small>plan · backup</small></button>
   </nav>
 </header>
 
@@ -490,6 +513,164 @@ let profile = LS.get('ppl-profile', {age:53});
 let diet = LS.get('ppl-diet', null);               // {phase:'diet'|'break', since:'YYYY-MM-DD'}
 let deload = LS.get('ppl-deload', {});             // {lastAt, activeUntil, snoozeUntil}
 const editOpen = {};
+let foods = LS.get('ppl-food', {});                // date -> free text of what was eaten
+let foodDate = null;                               // null = today
+let photoCache = [];                               // photos waiting in this phone's app storage
+
+/* ---------- food log ---------- */
+const FOOD_SEEDS=['no breakfast','coffee','banana + dates','sourdough + honey','dried figs 3','dried apricots 3'];
+const curFoodDate = () => foodDate || todayISO();
+function setFood(date, text){ if(text && text.trim()) foods[date]=text; else delete foods[date]; LS.set('ppl-food', foods); }
+function foodItems(text){
+  return String(text||'').split(/\n|·|;|,|\+/).map(x=>x.replace(/^\s*(food:)?\s*\d{1,2}[:.]\d{2}\s*/i,'').trim()).filter(x=>x && x.length<=40);
+}
+function foodChips(){
+  const m=new Map();
+  Object.keys(foods).sort().forEach(d=>foodItems(foods[d]).forEach(it=>{
+    const k=it.toLowerCase().replace(/\s+/g,' '); const o=m.get(k)||{label:it,n:0,last:''}; o.n++; o.last=d; o.label=it; m.set(k,o);
+  }));
+  const list=[...m.values()].sort((a,b)=>b.n-a.n || b.last.localeCompare(a.last)).map(o=>o.label).slice(0,24);
+  FOOD_SEEDS.forEach(x=>{ if(list.length<12 && !list.some(y=>y.toLowerCase()===x)) list.push(x); });
+  return list;
+}
+const hhmm = () => { const d=new Date(); return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); };
+function appendFood(item){
+  const date=curFoodDate(), isToday=date===todayISO();
+  let t=(foods[date]||'').replace(/\s+$/,'');
+  const lines=t?t.split('\n'):[], last=lines[lines.length-1]||'';
+  const m=last.match(/^(\d{1,2}):(\d{2})/);
+  const now=new Date(), nowMin=now.getHours()*60+now.getMinutes();
+  if(isToday && m && Math.abs(nowMin-(Number(m[1])*60+Number(m[2])))<=30) lines[lines.length-1]=last+' + '+item;
+  else lines.push((isToday?hhmm()+' ':'')+item);
+  setFood(date, lines.join('\n'));
+}
+function foodLine(date){ const t=foods[date]; return t ? '\n\nFOOD — '+fmtDate(date)+'\n'+t.trim() : ''; }
+function foodWeekText(){
+  const out=[]; for(let i=6;i>=0;i--){ const d=daysAgoISO(i); if(foods[d]) out.push(fmtDate(d)+': '+foods[d].trim().split('\n').join(' · ')); }
+  return out.length ? '\n\nFOOD (last 7 days)\n'+out.join('\n') : '';
+}
+function renderFood(){
+  const date=curFoodDate(), isToday=date===todayISO();
+  let h='<section class="panel foodbox"><h2>Food · '+esc(isToday?'today':fmtDate(date))+'</h2>'+
+    '<div class="mini">Day<div class="field" style="max-width:170px"><input type="date" id="foodDateIn" value="'+esc(date)+'" max="'+esc(todayISO())+'"></div>'+(isToday?'':'<button type="button" class="link" data-act="food-today">back to today</button>')+'</div>'+
+    '<textarea id="foodText" placeholder="Write what you eat, one line per time, e.g.\n07:30 sourdough 2 slices + ½ tsp qishta\n11:00 dried figs 3\n13:30 salmon 150 g + rice 1 cup">'+esc(foods[date]||'')+'</textarea>'+
+    '<div class="hint">Rough amounts are fine (slices, cups, pieces, a hand-sized portion). Add the brand for packaged things the first time. "No breakfast" is useful too.</div>'+
+    '<h2 style="margin-top:4px">Tap to add</h2><div class="fchips">'+
+    foodChips().map(c=>'<button type="button" data-act="fchip" data-v="'+esc(c)+'">'+esc(c)+'</button>').join('')+
+    '</div><div class="hint">These come from what you have written before; the ones you use most move to the front.'+(isToday?' Tapping adds the time too.':'')+'</div>'+
+    '<div class="row2"><button type="button" class="btn primary" data-act="food-share">Share food'+photoCountLabel()+'</button><button type="button" class="btn" data-act="food-copy">Copy</button></div></section>';
+  h+='<section class="panel"><h2>Photos</h2>'+photoBlockHTML()+'</section>';
+  h+=habitsHTML();
+  const days=[]; for(let i=1;i<=7;i++){ const d=daysAgoISO(i); if(foods[d]) days.push(d); }
+  if(days.length){
+    h+='<section class="panel"><h2>Earlier days</h2><div class="hist">'+days.map(d=>'<div class="h-item"><div class="h-top"><div class="h-title">'+esc(fmtDate(d))+'</div><button type="button" class="more" data-act="food-day" data-v="'+esc(d)+'">Edit</button></div><div class="h-body">'+esc(foods[d].trim())+'</div></div>').join('')+'</div></section>';
+  }
+  main.innerHTML=h;
+}
+function foodShareText(){ const d=curFoodDate(); return 'LIFT LOG — food, '+fmtDate(d)+'\n'+((foods[d]||'').trim()||'(nothing logged)'); }
+function foodAction(act,b){
+  if(act==='fchip'){ appendFood(b.dataset.v); render(); const ta=document.getElementById('foodText'); if(ta){ ta.scrollTop=ta.scrollHeight; } toast('Added: '+b.dataset.v); }
+  else if(act==='food-share'){ shareText(foodShareText(), document.getElementById('foodText'), true); }
+  else if(act==='food-copy'){ copyText(foodShareText(), document.getElementById('foodText'), 'Food copied'); }
+  else if(act==='food-day'){ foodDate=b.dataset.v; render(); window.scrollTo(0,0); }
+  else if(act==='food-today'){ foodDate=null; render(); }
+}
+
+/* ---------- photos: kept on the phone until shared, removed the day after sharing ---------- */
+function idb(){ return new Promise((res,rej)=>{ const r=indexedDB.open('liftlog',1);
+  r.onupgradeneeded=()=>{ if(!r.result.objectStoreNames.contains('photos')) r.result.createObjectStore('photos',{keyPath:'id'}); };
+  r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+function idbReq(mode, fn){ return idb().then(db=>new Promise((res,rej)=>{ const tx=db.transaction('photos',mode), st=tx.objectStore('photos'); const q=fn(st);
+  tx.oncomplete=()=>{ res(q&&q.result); db.close(); }; tx.onerror=()=>{ rej(tx.error); db.close(); }; })); }
+const idbAll = () => idbReq('readonly', st=>st.getAll());
+const idbPut = rec => idbReq('readwrite', st=>st.put(rec));
+const idbDel = id => idbReq('readwrite', st=>st.delete(id));
+let photoDay=null;
+async function loadPhotos(){
+  try{
+    const all=await idbAll(), today=todayISO(); photoDay=today;
+    const keep=[];
+    for(const r of all){ if(r.sent && r.sent<today) await idbDel(r.id); else keep.push(r); }   // only photos already shared on an earlier day
+    photoCache.forEach(p=>{ try{ URL.revokeObjectURL(p.url); }catch(e){} });
+    photoCache=keep.sort((a,b)=>a.at-b.at).map(r=>({id:r.id,date:r.date,at:r.at,sent:r.sent||null,blob:r.blob,url:URL.createObjectURL(r.blob)}));
+  }catch(e){ photoCache=[]; }
+  render();
+}
+function shrink(file){
+  return new Promise(res=>{
+    if(!window.createImageBitmap){ res(file); return; }
+    createImageBitmap(file,{imageOrientation:'from-image'}).then(bm=>{
+      const k=Math.min(1,1600/Math.max(bm.width,bm.height)), c=document.createElement('canvas');
+      c.width=Math.round(bm.width*k); c.height=Math.round(bm.height*k);
+      c.getContext('2d').drawImage(bm,0,0,c.width,c.height);
+      c.toBlob(b=>res(b||file),'image/jpeg',0.82);   // re-encoding also drops location data
+    }).catch(()=>res(file));
+  });
+}
+async function addPhotos(files){
+  let n=0;
+  for(const f of files){ try{ const b=await shrink(f); await idbPut({id:newId(),date:todayISO(),at:Date.now(),blob:b,sent:null}); n++; }catch(e){} }
+  await loadPhotos();
+  toast(n ? n+' photo'+(n>1?'s':'')+' kept · they go with your next Share' : 'Could not keep that photo');
+}
+function photoCountLabel(){ const n=photoCache.filter(p=>!p.sent).length; return n?' +'+n+' 📷':''; }
+function photoFiles(list){ return list.map((p,i)=>new File([p.blob],'liftlog-'+p.date+'-'+(i+1)+'.jpg',{type:p.blob.type||'image/jpeg'})); }
+function sharePhotos(text, fallbackEl){
+  const unsent=photoCache.filter(p=>!p.sent), files=photoFiles(unsent);
+  let ok=false; try{ ok=!!(navigator.share && navigator.canShare && navigator.canShare({files})); }catch(e){}
+  if(!ok){ toast('This browser cannot attach photos — they are kept. Text only.'); shareText(text, fallbackEl); return; }
+  navigator.share({title:'Lift Log', text, files}).then(async()=>{
+    const day=todayISO();
+    for(const p of unsent){ try{ await idbPut({id:p.id,date:p.date,at:p.at,blob:p.blob,sent:day}); }catch(e){} }
+    await loadPhotos();
+    toast(unsent.length+' photo'+(unsent.length>1?'s':'')+' shared · kept until tomorrow in case you need to send again');
+  }).catch(err=>{
+    if(err && err.name==='AbortError') toast('Not shared — photos kept');
+    else { toast('Photos could not be shared — they are kept'); copyText(text, fallbackEl); }
+  });
+}
+function photoBlockHTML(){
+  const un=photoCache.filter(p=>!p.sent), sent=photoCache.filter(p=>p.sent);
+  let h='<div class="camrow"><label class="btn">📷 Take photo<input type="file" accept="image/*" capture="environment" data-photo hidden></label>'+
+    '<label class="btn">From gallery<input type="file" accept="image/*" multiple data-photo hidden></label></div>';
+  if(photoCache.length){
+    h+='<div class="photos">'+photoCache.map(p=>'<div class="ph'+(p.sent?' sent':'')+'"><img src="'+p.url+'" alt="">'+
+      '<span class="tagp">'+(p.sent?'sent':esc(p.date===todayISO()?'today':fmtDate(p.date)))+'</span>'+
+      (confirmOpen['ph:'+p.id]
+        ? ''
+        : '<button type="button" class="x" data-act="ph-del" data-id="'+esc(p.id)+'" aria-label="Delete photo">×</button>')+'</div>').join('')+'</div>';
+    const ask=photoCache.find(p=>confirmOpen['ph:'+p.id]);
+    if(ask) h+='<div class="confirm">This photo has not been sent yet. Delete it? <button type="button" class="danger" data-act="ph-del-yes" data-id="'+esc(ask.id)+'">Delete</button><button type="button" data-act="ph-del-no" data-id="'+esc(ask.id)+'">Keep</button></div>';
+  }
+  h+='<div class="hint">'+(un.length?'<b style="color:var(--ink)">'+un.length+' waiting</b> — they go with your next Share (food, session or report). ':'')+
+    'Photos stay only in this app (not in your gallery) and are never removed before you share them. After sharing they are kept until tomorrow, then deleted.</div>';
+  if(sent.length) h+='<button type="button" class="link" data-act="ph-resend">Send today\'s shared photos again ('+sent.length+')</button>';
+  return h;
+}
+function photoAction(act,b){
+  const id=b.dataset.id, p=photoCache.find(x=>x.id===id);
+  if(act==='ph-del'&&p){ if(p.sent){ idbDel(id).then(loadPhotos); } else { confirmOpen['ph:'+id]=true; render(); } return true; }
+  if(act==='ph-del-no'){ delete confirmOpen['ph:'+id]; render(); return true; }
+  if(act==='ph-del-yes'){ delete confirmOpen['ph:'+id]; idbDel(id).then(loadPhotos); toast('Photo deleted'); return true; }
+  if(act==='ph-resend'){
+    const files=photoFiles(photoCache.filter(x=>x.sent));
+    try{ if(navigator.canShare && navigator.canShare({files})) navigator.share({title:'Lift Log photos',files}).catch(()=>{}); else toast('This browser cannot share photos'); }catch(e){ toast('This browser cannot share photos'); }
+    return true;
+  }
+  return false;
+}
+
+/* ---------- small switchers inside Train and Progress ---------- */
+function daySegHTML(nu){
+  return '<div class="subseg" role="group" aria-label="Which day">'+DAY_TABS.map(d=>{
+    const sub = d===nu ? '<small class="next">next up</small>' : '<small>'+esc(d==='cardio'?'walk + extra':(DAYS[d].sub||''))+'</small>';
+    return '<button type="button" data-act="day" data-v="'+d+'" aria-pressed="'+(tab===d)+'">'+esc(DAYS[d].label)+sub+'</button>'; }).join('')+'</div>';
+}
+function progSegHTML(){
+  return '<div class="subseg" role="group" aria-label="Progress view">'+
+    '<button type="button" data-act="pview" data-v="report" aria-pressed="'+(tab==='report')+'">Report<small>for Claude · history</small></button>'+
+    '<button type="button" data-act="pview" data-v="test" aria-pressed="'+(tab==='test')+'">Fitness test<small>age norms</small></button></div>';
+}
 let testOpen = null;
 const confirmOpen = {};                            // exercise id -> true
 let addOpen = false;
@@ -627,7 +808,8 @@ const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2.6" stroke-li
 
 function render(){
   document.body.dataset.day = tab;
-  document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected', String(t.dataset.t===tab)));
+  if(!['push','pull','legs','cardio','report','test','food','more'].includes(tab)) tab='push';
+  document.querySelectorAll('.tab').forEach(t=>t.setAttribute('aria-selected', String(t.dataset.t===groupOf(tab))));
   (function(){
     const w=daysAgoISO(6), m=todayISO().slice(0,7);
     const wN=sessions.filter(x=>x.date>=w).length, mN=sessions.filter(x=>(x.date||'').slice(0,7)===m).length;
@@ -635,13 +817,15 @@ function render(){
     if(sp) sp.innerHTML='<span class="streak">'+wN+'</span> this week · <span class="streak">'+mN+'</span> this month';
   })();
   const nu = nextUpDay(), SUB={push:DAYS.push.sub||'',pull:DAYS.pull.sub||'',legs:DAYS.legs.sub||''};
-  ['push','pull','legs','cardio'].forEach(k=>{ const t=document.getElementById('tab-'+k); if(t && t.firstChild && t.firstChild.nodeType===3) t.firstChild.nodeValue=DAYS[k].label; });
-  { const sm=document.querySelector('#tab-cardio small'); if(sm){ sm.textContent=DAYS.cardio.sub||''; sm.className=''; } }
-  ['push','pull','legs'].forEach(k=>{ const sm=document.querySelector('#tab-'+k+' small'); if(!sm) return;
-    if(k===nu){ sm.textContent='next up'; sm.className='next'; } else { sm.textContent=SUB[k]; sm.className=''; } });
-  document.getElementById('bar').hidden = (tab==='report' || tab==='test');
-  if(tab==='report') renderReport(); else if(tab==='test') renderTest(); else renderDay(tab);
+  { const sm=document.querySelector('#tab-train small'); if(sm) sm.textContent = DAY_TABS.includes(tab) ? DAYS[tab].label : (nu?'next: '+DAYS[nu].label:'today'); }
+  { const sm=document.querySelector('#tab-food small'); if(sm){ const n=foodItems(foods[todayISO()]||'').length, ph=photoCache.filter(x=>!x.sent).length; sm.textContent=(n?n+' logged':'today')+(ph?' · '+ph+' 📷':''); } }
+  { const sm=document.querySelector('#tab-progress small'); if(sm) sm.textContent = tab==='test'?'fitness test':'report · test'; }
+  document.getElementById('bar').hidden = !DAY_TABS.includes(tab);
+  if(tab==='report') renderReport(); else if(tab==='test') renderTest(); else if(tab==='food') renderFood(); else if(tab==='more') renderMore(); else renderDay(tab);
+  if(tab==='report'||tab==='test') main.insertAdjacentHTML('afterbegin', progSegHTML());
+  if(DAY_TABS.includes(tab)) main.insertAdjacentHTML('afterbegin', daySegHTML(nu));
   if(typeof updateBurn==='function') updateBurn();
+  if(typeof refreshShareLabels==='function') refreshShareLabels();
 }
 
 function renderDay(day){
@@ -772,7 +956,8 @@ function renderDay(day){
       '<label>Body weight<div class="field"><input id="x-bw-'+day+'" data-x="bw" type="number" inputmode="decimal" step="0.1" placeholder="optional" value="'+esc(d.bw)+'"><span>kg</span></div></label>'+
       '<label>Waist<div class="field"><input id="x-waist-'+day+'" data-x="waist" type="number" inputmode="decimal" step="0.5" placeholder="optional" value="'+esc(d.waist)+'"><span>cm</span></div></label>'+
     '</div>'+
-    '<textarea id="x-notes-'+day+'" data-x="notes" placeholder="Anything to mention? What you ate before, what hurt, what felt easy, what you swapped.">'+esc(d.notes)+'</textarea>'+
+    '<textarea id="x-notes-'+day+'" data-x="notes" placeholder="Anything to mention? What hurt, what felt easy, what you swapped. (Food goes in the Food tab.)">'+esc(d.notes)+'</textarea>'+
+    photoBlockHTML()+
     '</section>';
 
   main.innerHTML = h;
@@ -846,16 +1031,6 @@ function renderReport(){
     '<textarea class="report" id="reportText" readonly>'+esc(text)+'</textarea>'+
     '<div class="row2"><button type="button" class="btn primary" data-act="share">Share</button><button type="button" class="btn" data-act="copy">Copy</button></div>'+
     '<div class="hint">Share sends it to Signal, email or Notes. Then paste it into your chat with Claude.</div></section>';
-  h += '<section class="panel" id="importPanel"><h2>Import plan</h2>';
-  if(planPreview){
-    h += '<div class="diff"><b>'+esc(planPreview.title)+'</b>'+planPreview.lines.map(l=>'<div>'+esc(l)+'</div>').join('')+'</div>'+
-      '<div class="row2"><button type="button" class="btn primary" data-act="plan-apply">Apply plan</button><button type="button" class="btn" data-act="plan-cancel">Cancel</button></div>';
-  } else {
-    h += '<div class="hint">Copy the whole plan message, then tap Paste plan. Or paste it into the box yourself.</div>'+
-      '<textarea class="report" id="planText" style="min-height:80px" placeholder="LIFTLOG PLAN …"></textarea>'+
-      '<div class="row2"><button type="button" class="btn primary" data-act="plan-paste">Paste plan</button><button type="button" class="btn" data-act="plan-check">Check pasted text</button></div>';
-  }
-  h += '</section>';
 
   const rows = progressRows();
   const colors={push:'var(--push)',pull:'var(--pull)',legs:'var(--legs)',cardio:'var(--cardio)'};
@@ -890,6 +1065,21 @@ function renderReport(){
   });
   h += '</div></section>';
 
+  main.innerHTML = h;
+}
+
+function renderMore(){
+  let h=backupReminder();
+  h += '<section class="panel" id="importPanel"><h2>Import plan</h2>';
+  if(planPreview){
+    h += '<div class="diff"><b>'+esc(planPreview.title)+'</b>'+planPreview.lines.map(l=>'<div>'+esc(l)+'</div>').join('')+'</div>'+
+      '<div class="row2"><button type="button" class="btn primary" data-act="plan-apply">Apply plan</button><button type="button" class="btn" data-act="plan-cancel">Cancel</button></div>';
+  } else {
+    h += '<div class="hint">Copy the whole plan message, then tap Paste plan. Or paste it into the box yourself.</div>'+
+      '<textarea class="report" id="planText" style="min-height:80px" placeholder="LIFTLOG PLAN …"></textarea>'+
+      '<div class="row2"><button type="button" class="btn primary" data-act="plan-paste">Paste plan</button><button type="button" class="btn" data-act="plan-check">Check pasted text</button></div>';
+  }
+  h += '</section>';
   h += '<section class="panel"><h2>Backup</h2>'+
     '<div class="hint">Your log lives only on this phone. Save a backup file now and then (Files, Drive or email to yourself). To move to a new phone, open the file or paste the text below.'+(LS.get('ppl-lastBackup',null)?' Last backup: '+esc(fmtDate(LS.get('ppl-lastBackup')))+'.':' No backup yet.')+'</div>'+
     '<div class="row2"><button type="button" class="btn primary" data-act="backup-file">Save backup file</button><button type="button" class="btn" data-act="backup">Copy as text</button></div>'+
@@ -900,6 +1090,7 @@ function renderReport(){
   h += '<section class="panel"><h2>Programme</h2><div class="hint">Removed or added exercises? You can put the day back to the original plan.</div>'+
     (confirmOpen.reset?'<div class="confirm">Reset all three days to the original plan? <button type="button" class="danger" data-act="reset-yes">Reset</button><button type="button" data-act="reset-no">Cancel</button></div>':'<button type="button" class="btn" data-act="reset">Reset programme to original plan</button>')+
     '</section>';
+  h += '<section class="panel"><h2>Phone tips</h2><div class="hint">If the home-screen icon disappears (a GrapheneOS launcher bug), your log is still in the browser: open eagle902.github.io/lift-log and add it again. Bookmark that address too, and keep a backup file.</div></section>';
   main.innerHTML = h;
 }
 
@@ -1076,7 +1267,7 @@ function commonAction(act, b){
 }
 
 /* ---------- backup ---------- */
-function backupJSON(){ return JSON.stringify({app:'ppl-lift-log',v:2,exportedAt:new Date().toISOString(),program,sessions,habits,tests,profile,diet,deload}); }
+function backupJSON(){ return JSON.stringify({app:'ppl-lift-log',v:2,exportedAt:new Date().toISOString(),program,sessions,habits,tests,profile,diet,deload,foods}); }
 function saveBackupFile(){
   const name='liftlog-backup-'+todayISO()+'.json', txt=backupJSON();
   const ok=()=>{ LS.set('ppl-lastBackup',todayISO()); render(); toast('Backup saved'); };
@@ -1099,7 +1290,7 @@ function restoreBackup(txt){
     const o=JSON.parse(txt); if(!o||!Array.isArray(o.sessions)) return false;
     sessions=o.sessions; if(o.program&&o.program.push&&o.program.pull&&o.program.legs){ program=o.program; applyDays(); }
     if(o.habits) habits=o.habits; if(Array.isArray(o.tests)) tests=o.tests; if(o.profile) profile=o.profile;
-    if(o.diet!==undefined) diet=o.diet; if(o.deload) deload=o.deload;
+    if(o.diet!==undefined) diet=o.diet; if(o.deload) deload=o.deload; if(o.foods){ foods=o.foods; LS.set('ppl-food',foods); }
     LS.set('ppl-sessions',sessions); LS.set('ppl-program',program); LS.set('ppl-habits',habits); LS.set('ppl-tests',tests);
     LS.set('ppl-profile',profile); LS.set('ppl-diet',diet); LS.set('ppl-deload',deload);
     render(); return true;
@@ -1325,7 +1516,7 @@ function sessionBlock(s){
 function buildReport(mode){
   const ss = sortedSessions();
   if(!ss.length) return 'No sessions saved yet. Log a workout on the Push, Pull or Legs tab and tap Save session.';
-  if(mode==='last') return 'LIFT LOG — last session\n\n'+sessionBlock(ss[0]);
+  if(mode==='last') return 'LIFT LOG — last session\n\n'+sessionBlock(ss[0])+foodLine(ss[0].date);
   if(mode==='week'){
     const c=daysAgoISO(6);
     const wk=ss.filter(s=>s.date>=c).reverse();
@@ -1336,7 +1527,7 @@ function buildReport(mode){
     let t='LIFT LOG — last 7 days: '+wk.length+' sessions ('+lbls.map(l=>wk.filter(s=>dayLabel(s)===l).length+' '+l).join(', ')+')\n';
     t+='Cardio total: '+walks+' of '+(DAYS.cardio.goalMin||120)+' min goal'+(backs.length?' · Lower back range '+Math.min(...backs)+'–'+Math.max(...backs)+'/10':'')+'\n';
     [weekKcalText(), habitsText(), paceText(), dietText(), deloadText(), energyLinkText()].filter(Boolean).forEach(x=>t+=x+'\n');
-    return t+'\n'+wk.map(sessionBlock).join('\n\n');
+    return t+'\n'+wk.map(sessionBlock).join('\n\n')+foodWeekText();
   }
   const rows=progressRows().filter(r=>r.pts.length);
   let t='LIFT LOG — progress since first logged session\n(score = average of all sets, weight and reps combined as estimated one-rep max; assisted moves use that day\'s body weight minus assist; carries = kg × steps)\n';
@@ -1360,13 +1551,14 @@ function copyText(text, fallbackEl, msg){
   const fail=()=>{ if(fallbackEl){fallbackEl.focus();fallbackEl.select();} toast('Select all and copy the text'); };
   try{ navigator.clipboard.writeText(text).then(done, fail); }catch(e){ fail(); }
 }
-function shareText(text, fallbackEl){
+function shareText(text, fallbackEl, withPhotos){
+  if(withPhotos && photoCache.some(x=>!x.sent)){ sharePhotos(text, fallbackEl); return; }
   if(navigator.share){
     navigator.share({title:'Lift Log', text}).catch(err=>{ if(err && err.name!=='AbortError') copyText(text, fallbackEl); });
   } else copyText(text, fallbackEl);
 }
 async function loadPlanText(v){
-  try{ planPending=await parsePlan(v); planPreview=planDiff(planPending); tab='report'; LS.set('ppl-tab',tab); render(); const ip=document.getElementById('importPanel'); if(ip) ip.scrollIntoView({block:'start'}); }
+  try{ planPending=await parsePlan(v); planPreview=planDiff(planPending); tab='more'; LS.set('ppl-tab',tab); render(); const ip=document.getElementById('importPanel'); if(ip) ip.scrollIntoView({block:'start'}); }
   catch(err){ toast(err&&err.message==='old'?'This phone cannot read the short code. Ask for the long version.':'That text is not a Lift Log plan. Copy the whole message, including the code line.'); }
 }
 function pastePlan(){
@@ -1429,9 +1621,19 @@ restEl.addEventListener('click',()=>startRest(restLen));
 drawRest();
 
 /* ---------- events ---------- */
+const DAY_TABS=['push','pull','legs','cardio'];
+const groupOf = t => DAY_TABS.includes(t) ? 'train' : (t==='report'||t==='test') ? 'progress' : t;
+function goTab(t){ tab=t; LS.set('ppl-tab',tab); if(DAY_TABS.includes(t)) LS.set('ppl-lastDay',t); if(t==='report'||t==='test') LS.set('ppl-lastProg',t); addOpen=false; render(); window.scrollTo(0,0); }
 document.querySelector('.tabs').addEventListener('click',e=>{
   const b=e.target.closest('.tab'); if(!b) return;
-  tab=b.dataset.t; LS.set('ppl-tab',tab); addOpen=false; render(); window.scrollTo(0,0);
+  const g=b.dataset.t;
+  if(g==='train'){
+    if(DAY_TABS.includes(tab)) return goTab(tab);
+    const inProg=DAY_TABS.find(d=>{ try{ return anyDone(getDraft(d)); }catch(e){ return false; } });
+    return goTab(inProg || LS.get('ppl-lastDay',null) || nextUpDay() || 'push');
+  }
+  if(g==='progress') return goTab(tab==='report'||tab==='test' ? tab : LS.get('ppl-lastProg','report'));
+  goTab(g);
 });
 
 main.addEventListener('change',e=>{
@@ -1452,7 +1654,8 @@ main.addEventListener('change',e=>{
   if(t.dataset.prof){ const v=Number(t.value); if(v>=20&&v<=100){ profile.age=Math.round(v); LS.set('ppl-profile',profile); render(); } return; }
 });
 main.addEventListener('input',e=>{
-  if(tab==='report' || tab==='test') return;
+  if(e.target.id==='foodText'){ setFood(curFoodDate(), e.target.value); return; }
+  if(!DAY_TABS.includes(tab)) return;
   const d=getDraft(tab), t=e.target;
   if(t.dataset.edit) return;
   if(t.type==='date'){d.date=t.value||todayISO();putDraft(d);return}
@@ -1482,19 +1685,22 @@ main.addEventListener('click',e=>{
   const act=b.dataset.act, sec=b.closest('.ex'), exId=sec&&sec.dataset.ex;
   const ex=exId&&(program[tab]||[]).find(x=>x.id===exId);
   if(commonAction(act,b)) return;
+  if(act==='day' || act==='pview'){ goTab(b.dataset.v); return; }
+  if(photoAction(act,b)) return;
   if(tab==='test'){ testAction(act,b); return; }
-  if(tab==='report'){
+  if(tab==='food'){ foodAction(act,b); return; }
+  if(tab==='report' || tab==='more'){
     const item=b.closest('.h-item'), sid=item&&item.dataset.sid;
     if(act==='mode'){reportMode=b.dataset.v;render();}
     else if(act==='copy'){copyText(buildReport(reportMode),document.getElementById('reportText'));}
-    else if(act==='share'){shareText(buildReport(reportMode),document.getElementById('reportText'));}
+    else if(act==='share'){shareText(buildReport(reportMode),document.getElementById('reportText'),true);}
     else if(act==='plan-check'){
       const v=(document.getElementById('planText').value||'').trim();
       if(!v){toast('Paste the plan update into the box first');return}
       loadPlanText(v);
     }
     else if(act==='plan-paste'){ pastePlan(); }
-    else if(act==='share-week'){ shareText(buildReport('week')); }
+    else if(act==='share-week'){ shareText(buildReport('week'),null,true); }
     else if(act==='plan-cancel'){planPending=null;planPreview=null;render();}
     else if(act==='plan-apply'){
       const o=planPending, now=new Date().toISOString();
@@ -1654,8 +1860,8 @@ document.getElementById('save').addEventListener('click',async()=>{
 });
 document.getElementById('copyToday').addEventListener('click',()=>{
   const d=getDraft(tab), s=draftToSession(d);
-  if(!s.exercises.length && !s.cardio.length){shareText(buildReport('last'));return}
-  shareText('LIFT LOG — in progress\n\n'+sessionBlock(s));
+  if(!s.exercises.length && !s.cardio.length){shareText(buildReport('last'),null,true);return}
+  shareText('LIFT LOG — in progress\n\n'+sessionBlock(s)+foodLine(s.date),null,true);
 });
 
 async function deleteSession(id){
@@ -1671,7 +1877,7 @@ function saveProgram(){
 applyDays();
 joinSplitSessions();
 (function(){
-  const inProgress = (tab!=='report' && tab!=='test') &&(()=>{ const d=getDraft(tab); return anyDone(d) || Object.keys(d.entries||{}).length>0 || (d.cardio||[]).some(c=>Object.keys(c).length>1); })();
+  const inProgress = DAY_TABS.includes(tab) &&(()=>{ const d=getDraft(tab); return anyDone(d) || Object.keys(d.entries||{}).length>0 || (d.cardio||[]).some(c=>Object.keys(c).length>1); })();
   if(!inProgress){ tab=nextUpDay(); LS.set('ppl-tab',tab); }
   else if(anyDone(getDraft(tab))) keepAwake(true);
 })();
@@ -1680,13 +1886,23 @@ setInterval(()=>{
   if(!sw.running) return;
   const box=document.querySelector('.sw[data-sw="'+(window.CSS&&CSS.escape?CSS.escape(sw.id):sw.id)+'"]'); if(!box) return;
   const secs=swSeconds(sw.id); box.querySelector('.sw-t').textContent=fmtS(secs);
-  const ex=['push','pull','legs'].map(k=>program[k]||[]).flat().find(x=>x.id===sw.id);
+  const ex=['push','pull','legs','cardio'].map(k=>program[k]||[]).flat().find(x=>x.id===sw.id);
   if(ex && secs>=ex.reps){ box.classList.add('hit'); if(!sw.beeped){ sw.beeped=true; beep(988,180); beep(1319,260,0.25); buzz([150,80,150]); } }
 }, 200);
+main.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.hasAttribute && t.hasAttribute('data-photo') && t.files && t.files.length){ const f=[...t.files]; t.value=''; addPhotos(f); }
+  else if(t.id==='foodDateIn'){ foodDate = (!t.value || t.value>=todayISO()) ? null : t.value; render(); }
+});
+function refreshShareLabels(){
+  const b=document.getElementById('copyToday'); if(b) b.textContent='Share'+photoCountLabel();
+  document.querySelectorAll('[data-act="share"]').forEach(x=>{ x.textContent='Share'+photoCountLabel(); });
+}
+loadPhotos();
 // Live "burned so far" counter in the bottom bar.
 var lastBurn=null;
 main.addEventListener("input",()=>setTimeout(updateBurn,0));
-function liveBurn(){ if(tab==='report'||tab==='test') return null; try{ return sessionKcal(draftToSession(getDraft(tab))); }catch(e){ return null; } }
+function liveBurn(){ if(!DAY_TABS.includes(tab)) return null; try{ return sessionKcal(draftToSession(getDraft(tab))); }catch(e){ return null; } }
 function updateBurn(){
   const box=document.getElementById('burn'), n=document.getElementById('burnN'); if(!box||!n) return;
   const k=liveBurn();
@@ -1695,7 +1911,8 @@ function updateBurn(){
   if(lastBurn!=null && k.total>lastBurn){ n.classList.remove('pop'); void n.offsetWidth; n.classList.add('pop'); }
   lastBurn=k.total;
 }
-setInterval(()=>{ const el=document.getElementById('elapsed'); if(el) el.textContent=minsSince(el.dataset.start)+' min'; updateBurn(); }, 30000);
+setInterval(()=>{ const el=document.getElementById('elapsed'); if(el) el.textContent=minsSince(el.dataset.start)+' min'; updateBurn(); if(photoDay && photoDay!==todayISO()) loadPhotos(); }, 30000);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden && photoDay && photoDay!==todayISO()){ foodDate=null; loadPhotos(); } });
 if('serviceWorker' in navigator && location.protocol.startsWith('http')){
   navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
